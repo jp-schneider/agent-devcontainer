@@ -28,7 +28,7 @@
     "REMOTE_CONTAINERS_DISPLAY_SOCK": null,
     "WAYLAND_DISPLAY": null
   },
-  "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "uv"],
+  "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "python-uv-gpu", "uv"],
   // postStartCommand: link each project's .venv into the persisted virtualenvs
   // volume (re-run every start so newly added projects get picked up), then
   // clean up sockets created before VS Code attaches

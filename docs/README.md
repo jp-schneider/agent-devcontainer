@@ -20,7 +20,9 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── update-from-template.sh      merge template updates into a derived repo
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
-├── .generated/                  gitignored, written by initialize.sh
+├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
+├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
+├── mask-patterns.txt            optional: project mask additions/exceptions
 └── shared/
     ├── Dockerfile               one image definition for all variants
     ├── compose.core.yml         hardened core, always first
@@ -28,6 +30,9 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
     ├── compose.docker-proxy.yml overlay (opt-in): read-only Docker API
     ├── initialize.sh            host-side, before every start
     ├── host-override.sh         host detection → .generated/compose.host.yml
+    ├── protect-paths.sh         read-only binds + secret masks → .generated/compose.protect.yml
+    ├── mask-patterns.txt        regexes of files hidden from the container
+    ├── resolve-config.sh        docker compose config → .generated/compose.resolved.yml
     ├── devcontainer.md          agent-facing environment notes (imported by CLAUDE.md)
     ├── devcontainer.docker-proxy.md
     └── toolchains/uv/           apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml

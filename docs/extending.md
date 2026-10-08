@@ -8,7 +8,8 @@
    - `dockerComposeFile`: keep `../shared/compose.core.yml` first, then
      `../.generated/compose.host.yml`, and **`../.generated/compose.protect.yml` last**. Otherwise
      a later file could override a protected mount.
-   - `initializeCommand`: pass the toolchain name to `initialize.sh` (or none).
+   - `initializeCommand`: `["bash", ".devcontainer/shared/initialize.sh", "<variant>", "<toolchain>"]`.
+     The variant name must match the folder; `resolve-config.sh` reads the compose list from it.
    - `postStartCommand`: call the toolchain's `post-start.sh` if it has one. Keep the socket cleanup.
    - `customizations.vscode.extensions`: stack-specific extensions.
 3. **Keep `remoteEnv` and the VS Code security settings identical to the other variants.**
@@ -33,6 +34,9 @@ Checklist:
   Volumes shared across projects are `external: true` and created in `init-host.sh`. Compose
   would otherwise label them with whichever project created them first.
 - **Toolchain-specific state:** don't put it in core; core must stay toolchain-agnostic.
+- **Environment variables:** `init-host.sh` writes them to `shared/.env`, which is **not** passed
+  into the container. Pass the ones the container needs explicitly in the toolchain's `compose.yml`
+  (`environment: {VAR: ${VAR}}`).
 - **Only one toolchain per variant:** a later overlay's `TOOLCHAIN` arg would override the
   earlier one. Combining toolchains (e.g. uv + node) needs a combined toolchain folder or a
   change to the Dockerfile.

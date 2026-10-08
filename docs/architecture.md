@@ -4,7 +4,7 @@
 
 What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens a variant:
 
-1. **Host: `initializeCommand`.** It runs `bash .devcontainer/shared/initialize.sh <toolchain>`
+1. **Host: `initializeCommand`.** It runs `bash .devcontainer/shared/initialize.sh <variant> <toolchain>`
    from the workspace root. The script:
    - creates empty `.env` (host-only; `DEVCONTAINER_DATA_PATH` / `DEVCONTAINER_RUNS_PATH`) and
      `container.env` (passed to the container) if missing;
@@ -16,6 +16,9 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
    - runs `protect-paths.sh`, which writes `.devcontainer/.generated/compose.protect.yml` (read-only
      binds; see [security.md](security.md)). If it finds a planted nested repo, it **aborts the
      start**: the script exits non-zero and leaves no overlay, so compose can't start either;
+   - runs `resolve-config.sh <variant>`, which writes `.devcontainer/.generated/compose.resolved.yml`:
+     `docker compose config` over the variant's `dockerComposeFile` list, read from its
+     `devcontainer.json`. It is for inspection only; failures only warn;
    - creates `.claude-docker/.bash_history` and `.claude-docker/.claude.json` for the bind mounts.
 2. **Host: compose.** The CLI merges the files in the variant's `dockerComposeFile` list, builds
    the image if needed, and starts the `claude-code` service (plus `docker-proxy` if that overlay
@@ -49,6 +52,8 @@ Merge rules that matter here:
 **`compose.core.yml` must be first.** Compose's project directory is the directory of the first
 file, and compose auto-loads `.env` from there for `${VAR}` interpolation. That is why the
 generated `.env` lives in `shared/` and not in `.devcontainer/` or `.generated/`.
+It is used for interpolation only; `env_file` passes just `container.env`, and overlays add the
+variables the container needs via `environment:` (e.g. the uv overlay's `UV_*`).
 
 **The project name is pinned:** `name: ${PROJECT_SLUG}_devcontainer`.
 - *Why:* without it, the devcontainer CLI derives the name from the first file's directory

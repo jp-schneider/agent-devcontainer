@@ -95,6 +95,30 @@ It does so automatically, too: host VS Code detects repos in subfolders, and git
 - **`.env`** is host-only. `initialize.sh` reads `DEVCONTAINER_DATA_PATH`/`RUNS_PATH` from it.
   Because the agent can't write it, those values are trusted.
 
+## What the container can see about the host (not confidential)
+
+The protections above are about **integrity** (the agent can't change what the host runs) and
+**secret files** (masked). Host paths and the shape of the setup are **not** hidden, and can't
+be hidden with this design:
+- **`/proc/self/mountinfo`** lists every bind mount with its host source path: home directory,
+  repo path, volume paths. It also shows which files are masked (`/null -> /app/.env`). Every
+  process can read it, and Docker doesn't mask it.
+- **Absolute host paths in the container are unavoidable:** the main repo's `.git` is mounted at
+  its real host path so git worktrees resolve.
+- **Generated files are readable:** `.devcontainer/shared/.env` (paths, UID/GID, project name)
+  and `.devcontainer/.generated/*.yml` (overlays, resolved config).
+
+So masking these files wouldn't add confidentiality, which is why they stay visible. Don't
+encode secrets in paths or directory names.
+
+**Environment variables:**
+- **Passed in:** only `container.env` (`env_file`) plus variables an overlay passes explicitly
+  (e.g. `UV_VENVS_ROOT`, `UV_PROJECT_ENVIRONMENT` from `toolchains/uv/compose.yml`).
+- **Not passed in:** the host-side values in `shared/.env` (`HOST_HOME`, `HOST_UID`/`GID`,
+  `LOCAL_WORKSPACE_FOLDER`, `GIT_MAIN_REPO_PATH`, `WORKTREE_NAME`, `PROJECT_SLUG`,
+  `DEVCONTAINER_*_PATH`). They are only used for compose interpolation. This is tidiness, not
+  confidentiality: see above.
+
 ## Known limitations
 
 These are **not** covered by the current setup.

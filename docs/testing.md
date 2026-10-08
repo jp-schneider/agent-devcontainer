@@ -15,6 +15,7 @@ has a README with the exact command.
 | apt package set | Moving packages between Dockerfile and `apt-packages.txt` keeps the set | `*-toolchain-split-check` |
 | Host override | `host-override.sh` output for WSL and generic hosts (`PROC_VERSION` test hook) | `*-host-override-check` |
 | Template flow | cleanup + two template updates on throwaway repos (`test.sh`, 21 checks) | `*-template-flow-check` |
+| Resolved config | `resolve-config.sh`: compose list extracted from each variant, order, failure handling (fake `docker`, 8 checks) | `*-resolve-config-check` |
 | Path protection | `protect-paths.sh`: generated read-only binds (main worktree, linked worktree, submodule), planted-repo aborts, allowlist, mask patterns (defaults, project file, allow lines), awkward paths, host-only switch, allowlisted nested repos and pointer files (`test.sh`, 42 checks) | `*-protect-paths-check` |
 
 Tests that create git repos must use a work dir **outside the workspace** (`"$(mktemp -d)/work"`).
@@ -29,7 +30,8 @@ Also run `bash -n` on all changed shell scripts. `shellcheck` isn't installed in
 
 After changes to the Dockerfile, compose files or host scripts:
 
-1. **Config:** `bash .devcontainer/shared/initialize.sh <toolchain>`, then
+1. **Config:** `bash .devcontainer/shared/initialize.sh <variant> <toolchain>`, then inspect
+   `.devcontainer/.generated/compose.resolved.yml`, or run
    `docker compose -f … config` with the variant's file list. Check that every `${VAR}` resolved
    and that the expected mounts and args are present.
 2. **Rebuild** each affected variant ("Rebuild and Reopen in Container").
@@ -43,6 +45,7 @@ After changes to the Dockerfile, compose files or host scripts:
      `touch /app/.devcontainer/x`, `touch /app/.git/hooks/x`, `git config foo.bar 1`,
      `echo {} > /app/.claude/settings.json`, `mv /app/.vscode /app/v2`.
    - `cat /app/.env` prints nothing; variables from `container.env` are in `env`.
+   - `env | grep -E "HOST_HOME|LOCAL_WORKSPACE_FOLDER|GIT_MAIN_REPO_PATH"` prints nothing, while `UV_PROJECT_ENVIRONMENT` is set.
    - A commit still works: `git commit --allow-empty -m test`, then `git reset --soft HEAD~1`.
    - VS Code: Source Control still shows the main repo (with `git.autoRepositoryDetection: false`
      it may need "Git: Open Repository" once; note which), and a planted repo is **not** auto-opened.

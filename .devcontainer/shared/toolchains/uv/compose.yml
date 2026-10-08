@@ -4,6 +4,10 @@ services:
     build:
       args:
         TOOLCHAIN: uv
+    environment:
+      # From shared/.env (written by init-host.sh); used by uv and post-start.sh
+      UV_VENVS_ROOT: ${UV_VENVS_ROOT}
+      UV_PROJECT_ENVIRONMENT: ${UV_PROJECT_ENVIRONMENT}
     volumes:
       # Persist uv Python versions and virtualenvs to speed up Python environment setup and avoid permission issues
       - uv-python-versions:/home/vscode/.local/share/uv/python

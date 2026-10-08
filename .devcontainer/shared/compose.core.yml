@@ -45,7 +45,8 @@ services:
     env_file:
       # container.env, not .env: .env is host-only and masked in the container (protect-paths.sh)
       - ${LOCAL_WORKSPACE_FOLDER}/container.env
-      - ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared/.env
+      # shared/.env (host paths, UID/GID) is only for compose interpolation, not passed in;
+      # overlays pass the variables the container needs explicitly (e.g. toolchains/uv)
     networks:
       - dev
     command: >

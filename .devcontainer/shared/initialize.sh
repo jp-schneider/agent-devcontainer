@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 # Runs on the host from the workspace root (devcontainer initializeCommand).
-# Usage: initialize.sh [<toolchain>]   e.g. "uv"; omit for core only
+# Usage: initialize.sh <variant> [<toolchain>]   e.g. "python-uv-gpu uv"; omit the toolchain for core only
 
-TOOLCHAIN="${1:-}"
+VARIANT="${1:-}"
+TOOLCHAIN="${2:-}"
 
 echo "Initializing devcontainer environment..."
 
@@ -44,6 +45,10 @@ fi
 bash .devcontainer/shared/host-override.sh .devcontainer/.generated/compose.host.yml
 # Read-only protection of host-executed paths; aborts the start on planted nested repos
 bash .devcontainer/shared/protect-paths.sh .devcontainer/.generated/compose.protect.yml || exit 1
+# Fully merged compose config of this variant, for inspection (warns only)
+if [ -n "$VARIANT" ]; then
+    bash .devcontainer/shared/resolve-config.sh "$VARIANT" .devcontainer/.generated/compose.resolved.yml
+fi
 echo "Done."
 
 echo "Creating .claude-docker directory and files..."

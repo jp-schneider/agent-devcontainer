@@ -30,10 +30,16 @@ shared/toolchains/<name>/compose.yml   toolchain build arg + volumes
 ```
 
 - **`shared/Dockerfile`**: one Dockerfile for all variants, parametrized by `BASE_IMAGE` and `TOOLCHAIN`.
-- **`shared/initialize.sh <toolchain>`**: runs on the host before every start. It writes
+- **`shared/initialize.sh <variant> <toolchain>`**: runs on the host before every start. It writes
   `shared/.env` with paths, UID/GID and the compose project name. It also runs the toolchain's
   `init-host.sh` and generates both overlays.
+- **`.generated/compose.resolved.yml`**: the fully merged config of the last started variant
+  (`docker compose config`), for inspection. It isn't used to start the container, and the
+  devcontainer CLI adds its own overrides on top. `env_file` contents (`container.env`) are
+  inlined, so treat it like `container.env`.
 - **`compose.core.yml` must stay first:** compose loads `.env` from the first file's directory.
+  `shared/.env` is used only for that interpolation. It is **not** passed into the container;
+  overlays pass the variables the container needs explicitly.
 
 ## Environment files
 
