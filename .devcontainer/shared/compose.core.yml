@@ -3,6 +3,13 @@
 # via the dockerComposeFile array in their devcontainer.json; this file must
 # stay first in that array, because compose resolves the project directory
 # (and with it the auto-loaded .env written by initialize.sh) from the first file.
+
+# Pinned project name: without it the devcontainer CLI derives it from the first
+# compose file's directory ("shared"), so every project built from this template
+# would share one compose project and recreate each other's containers.
+# PROJECT_SLUG reproduces the CLI's old default "<workspace>_devcontainer".
+name: ${PROJECT_SLUG:-project}_devcontainer
+
 services:
   claude-code:
     hostname: ${WORKTREE_NAME:-project}-devcontainer
@@ -61,6 +68,7 @@ networks:
 volumes:
   uv-python-versions:
     name: claude-code-uv-python-versions
+    external: true
   virtualenvs:
     name: claude-code-${WORKTREE_NAME:-project}-virtualenvs
   claude-config:
