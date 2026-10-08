@@ -1,0 +1,26 @@
+# Overlay: read-only Docker API access via a socket proxy (no run/exec/build).
+# Note: CONTAINERS=1 lets the agent `docker inspect` every container on the
+# host, including their environment variables.
+services:
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      VOLUMES: 1
+      POST: 0
+      BUILD: 0
+      COMMIT: 0
+      EXEC: 0
+      SWARM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dev
+  claude-code:
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+    depends_on:
+      - docker-proxy

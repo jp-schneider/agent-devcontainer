@@ -1,40 +1,19 @@
 
+# Stack-agnostic, hardened core. Variants layer overlays on top of this file
+# via the dockerComposeFile array in their devcontainer.json; this file must
+# stay first in that array, because compose resolves the project directory
+# (and with it the auto-loaded .env written by initialize.sh) from the first file.
 services:
-  docker-proxy:
-    image: tecnativa/docker-socket-proxy:latest
-    environment:
-      CONTAINERS: 1
-      IMAGES: 1
-      INFO: 1
-      NETWORKS: 1
-      VOLUMES: 1
-      POST: 0
-      BUILD: 0
-      COMMIT: 0
-      EXEC: 0
-      SWARM: 0
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - dev
   claude-code:
     hostname: ${WORKTREE_NAME:-project}-devcontainer
     build:
-      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer
+      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared
       args:
         USER_UID: ${HOST_UID:-1000}
         USER_GID: ${HOST_GID:-1000}
     container_name: claude-code-${WORKTREE_NAME:-project}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     cap_drop:
       - ALL
-    shm_size: '2gb'
     security_opt:
       - no-new-privileges:true
     volumes:
@@ -55,20 +34,17 @@ services:
       # WSL2 GPU libraries — provides current libdxcore.so and CUDA WSL2 drivers from the Windows NVIDIA driver
       - /usr/lib/wsl:/usr/lib/wsl:ro
       # Data Symlink
-      # - ${DEVCONTAINER_DATA_PATH:-data/datasets}:/app/data/datasets:rw  
+      # - ${DEVCONTAINER_DATA_PATH:-data/datasets}:/app/data/datasets:rw
     environment:
-      DOCKER_HOST: tcp://docker-proxy:2375
       # Required for HMR file watching in WSL/Docker
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
     env_file:
       - ${LOCAL_WORKSPACE_FOLDER}/.env
-      - ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/.env
+      - ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared/.env
     networks:
       - dev
-    depends_on:
-      - docker-proxy
     command: >
       bash -c '. /home/vscode/.bashrc &&
       curl -fsSL https://claude.ai/install.sh | bash;

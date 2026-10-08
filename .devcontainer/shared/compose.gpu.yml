@@ -1,0 +1,11 @@
+# Overlay: NVIDIA GPU access. Requires the NVIDIA container runtime on the host.
+services:
+  claude-code:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: '2gb'

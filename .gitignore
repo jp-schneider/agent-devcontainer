@@ -1,2 +1,4 @@
 **/*.env
 .claude-docker/*
+.claude/settings.local.json
+.claude/scratchpad/*/outputs/

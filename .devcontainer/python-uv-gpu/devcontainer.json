@@ -1,6 +1,10 @@
 {
-  "name": "Claude Code Development Container",
-  "dockerComposeFile": "docker-compose.yml",
+  "name": "Claude Code · python-uv-gpu",
+  "dockerComposeFile": [
+    "../shared/compose.core.yml",
+    "../shared/compose.gpu.yml",
+    "../shared/compose.docker-proxy.yml"
+  ],
   "service": "claude-code",
   "workspaceFolder": "/app",
   "remoteUser": "vscode",
@@ -22,11 +26,11 @@
     "REMOTE_CONTAINERS_DISPLAY_SOCK": null,
     "WAYLAND_DISPLAY": null
   },
-  "initializeCommand": ["bash", ".devcontainer/initialize.sh"],
+  "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh"],
   // postStartCommand: link each project's .venv into the persisted virtualenvs
   // volume (re-run every start so newly added projects get picked up), then
   // clean up sockets created before VS Code attaches
-  "postStartCommand": "bash /app/.devcontainer/link-venvs.sh; find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
+  "postStartCommand": "bash /app/.devcontainer/shared/link-venvs.sh; find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
   // IPC socket cleanup (vscode-ipc-*.sock, vscode-git-*.sock) is handled by a background
   // loop in the Docker Compose command – postAttachCommand is unreliable for background
   // processes due to VS Code's cgroup-based lifecycle cleanup.
