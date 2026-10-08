@@ -1,0 +1,91 @@
+
+services:
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      VOLUMES: 1
+      POST: 0
+      BUILD: 0
+      COMMIT: 0
+      EXEC: 0
+      SWARM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dev
+  claude-code:
+    hostname: ${WORKTREE_NAME:-project}-devcontainer
+    build:
+      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    container_name: claude-code-${WORKTREE_NAME:-project}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    cap_drop:
+      - ALL
+    shm_size: '2gb'
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      # Mount the workspace folder into the container at /app, using cached mode for performance
+      - ${LOCAL_WORKSPACE_FOLDER}:/app:cached
+      # Persist node_modules in a named volume to speed up subsequent starts and avoid permission issues with host-mounted node_modules
+      #- node-modules:/app/node_modules
+      # Git worktree support — mount main repo .git to the same absolute path inside the container
+      - ${GIT_MAIN_REPO_PATH}/.git:${GIT_MAIN_REPO_PATH}/.git:cached
+      - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.claude.json:/home/vscode/.claude.json
+      - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.bash_history:/home/vscode/.bash_history
+      # Persist uv Python versions and virtualenvs to speed up Python environment setup and avoid permission issues
+      - uv-python-versions:/home/vscode/.local/share/uv/python
+      - virtualenvs:/home/vscode/.virtualenvs
+      - claude-config:/home/vscode/.claude
+      # Playwright browser binaries — persisted so they survive container restarts
+      #- playwright-browsers:/home/vscode/.cache/ms-playwright
+      # WSL2 GPU libraries — provides current libdxcore.so and CUDA WSL2 drivers from the Windows NVIDIA driver
+      - /usr/lib/wsl:/usr/lib/wsl:ro
+      # Data Symlink
+      # - ${DEVCONTAINER_DATA_PATH:-data/datasets}:/app/data/datasets:rw  
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+      # Required for HMR file watching in WSL/Docker
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      CLAUDE_CONFIG_DIR: /home/vscode/.claude
+    env_file:
+      - ${LOCAL_WORKSPACE_FOLDER}/.env
+      - ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/.env
+    networks:
+      - dev
+    depends_on:
+      - docker-proxy
+    command: >
+      bash -c '. /home/vscode/.bashrc &&
+      curl -fsSL https://claude.ai/install.sh | bash;
+      (for i in $$(seq 1 10); do sleep 30;
+        find /tmp -maxdepth 2 \( -name "vscode-ipc-*.sock" -o -name "vscode-git-*.sock" \) -delete 2>/dev/null;
+      done) &
+      sleep infinity'
+
+networks:
+  dev:
+    name: ${WORKTREE_NAME:-project}-dev
+    driver: bridge
+
+volumes:
+  uv-python-versions:
+    name: claude-code-uv-python-versions
+  virtualenvs:
+    name: claude-code-${WORKTREE_NAME:-project}-virtualenvs
+  claude-config:
+    name: claude-code-${WORKTREE_NAME:-project}-config
