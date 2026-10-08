@@ -4,7 +4,8 @@
     "../shared/compose.core.yml",
     "../shared/compose.gpu.yml",
     "../shared/toolchains/uv/compose.yml",
-    "../.generated/compose.host.yml"
+    "../.generated/compose.host.yml",
+    "../.generated/compose.protect.yml"
   ],
   "service": "claude-code",
   "workspaceFolder": "/app",

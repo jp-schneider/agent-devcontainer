@@ -1,0 +1,7 @@
+{
+  // Security: don't auto-open git repositories found in subfolders or around open files.
+  // An agent could plant a nested repo whose config (e.g. core.fsmonitor) runs when a
+  // VS Code opened on the host scans it. See docs/security.md (template) / .devcontainer/README.md.
+  // This folder is read-only inside the devcontainer; change it on the host.
+  "git.autoRepositoryDetection": false
+}

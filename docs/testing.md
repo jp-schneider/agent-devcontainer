@@ -15,6 +15,10 @@ has a README with the exact command.
 | apt package set | Moving packages between Dockerfile and `apt-packages.txt` keeps the set | `*-toolchain-split-check` |
 | Host override | `host-override.sh` output for WSL and generic hosts (`PROC_VERSION` test hook) | `*-host-override-check` |
 | Template flow | cleanup + two template updates on throwaway repos (`test.sh`, 21 checks) | `*-template-flow-check` |
+| Path protection | `protect-paths.sh`: generated read-only binds (main worktree, linked worktree, submodule), planted-repo aborts, allowlist, mask patterns (defaults, project file, allow lines), awkward paths, host-only switch, allowlisted nested repos and pointer files (`test.sh`, 42 checks) | `*-protect-paths-check` |
+
+Tests that create git repos must use a work dir **outside the workspace** (`"$(mktemp -d)/work"`).
+Otherwise `protect-paths.sh` finds them as planted repos and aborts the next container start.
 
 Every check should have a **negative control**: a deliberately wrong input that must make it
 fail. Otherwise a passing check proves nothing.
@@ -35,6 +39,15 @@ After changes to the Dockerfile, compose files or host scripts:
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.
    - `docker ps` should fail unless the proxy overlay is enabled.
+   - Protection (each write must fail, with "Read-only file system" or "Device or resource busy"):
+     `touch /app/.devcontainer/x`, `touch /app/.git/hooks/x`, `git config foo.bar 1`,
+     `echo {} > /app/.claude/settings.json`, `mv /app/.vscode /app/v2`.
+   - `cat /app/.env` prints nothing; variables from `container.env` are in `env`.
+   - A commit still works: `git commit --allow-empty -m test`, then `git reset --soft HEAD~1`.
+   - VS Code: Source Control still shows the main repo (with `git.autoRepositoryDetection: false`
+     it may need "Git: Open Repository" once; note which), and a planted repo is **not** auto-opened.
+   - A planted repo aborts the next start: `git init /app/planted`, then rebuild, then expect
+     `protect-paths: ABORT`. Remove the repo afterwards.
 4. **Labels** (from the host or via the proxy): the container's `com.docker.compose.project` is
    `<slug>_devcontainer`, and other projects' containers are untouched.
 

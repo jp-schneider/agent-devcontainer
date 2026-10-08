@@ -18,7 +18,7 @@ set -uo pipefail
 # exists (e.g. a plain start/resume rather than a recreate), the inherited
 # environment here can be stale. /app is bind-mounted, so re-source the
 # live files directly to always pick up the current values.
-for env_file in /app/.env /app/.devcontainer/shared/.env; do
+for env_file in /app/container.env /app/.devcontainer/shared/.env; do
     if [ -f "$env_file" ]; then
         set -a
         # shellcheck disable=SC1090

@@ -6,13 +6,16 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
 
 1. **Host: `initializeCommand`.** It runs `bash .devcontainer/shared/initialize.sh <toolchain>`
    from the workspace root. The script:
-   - creates an empty root `.env` if it is missing (users may put `DEVCONTAINER_DATA_PATH`
-     / `DEVCONTAINER_RUNS_PATH` there);
+   - creates empty `.env` (host-only; `DEVCONTAINER_DATA_PATH` / `DEVCONTAINER_RUNS_PATH`) and
+     `container.env` (passed to the container) if missing;
    - rewrites `.devcontainer/shared/.env` with `WORKTREE_NAME`, `PROJECT_SLUG`,
      `GIT_MAIN_REPO_PATH`, `LOCAL_WORKSPACE_FOLDER`, `HOST_HOME`, `HOST_UID`, `HOST_GID`;
    - runs `toolchains/<toolchain>/init-host.sh .devcontainer/shared/.env` if it exists. For uv it
      appends `UV_*` and runs `docker volume create claude-code-uv-python-versions`;
    - runs `host-override.sh`, which writes `.devcontainer/.generated/compose.host.yml`;
+   - runs `protect-paths.sh`, which writes `.devcontainer/.generated/compose.protect.yml` (read-only
+     binds; see [security.md](security.md)). If it finds a planted nested repo, it **aborts the
+     start**: the script exits non-zero and leaves no overlay, so compose can't start either;
    - creates `.claude-docker/.bash_history` and `.claude-docker/.claude.json` for the bind mounts.
 2. **Host: compose.** The CLI merges the files in the variant's `dockerComposeFile` list, builds
    the image if needed, and starts the `claude-code` service (plus `docker-proxy` if that overlay
@@ -31,7 +34,8 @@ shared/compose.core.yml                 always first
 shared/compose.gpu.yml                  optional
 shared/compose.docker-proxy.yml         optional
 shared/toolchains/<name>/compose.yml    toolchain
-../.generated/compose.host.yml          always last
+../.generated/compose.host.yml          generated: host-specific mounts
+../.generated/compose.protect.yml       generated, always last: read-only protection
 ```
 
 Merge rules that matter here:

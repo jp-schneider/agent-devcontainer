@@ -8,11 +8,15 @@ TOOLCHAIN="${1:-}"
 echo "Initializing devcontainer environment..."
 
 mkdir -p .devcontainer/shared .claude-docker
-# Check if .env file exists in the root of the repository
+# Root .env: host-only config (masked inside the container); container.env: passed to the container
 if [ ! -f .env ]; then
     echo "No .env file found in the root of the repository."
     echo "Creating a new .env file..."
     touch .env
+fi
+if [ ! -f container.env ]; then
+    echo "Creating an empty container.env (environment variables for the container)..."
+    touch container.env
 fi
 
 echo "Recreating .devcontainer/shared/.env file..."
@@ -38,6 +42,8 @@ if [ -n "$TOOLCHAIN" ] && [ -f ".devcontainer/shared/toolchains/$TOOLCHAIN/init-
 fi
 
 bash .devcontainer/shared/host-override.sh .devcontainer/.generated/compose.host.yml
+# Read-only protection of host-executed paths; aborts the start on planted nested repos
+bash .devcontainer/shared/protect-paths.sh .devcontainer/.generated/compose.protect.yml || exit 1
 echo "Done."
 
 echo "Creating .claude-docker directory and files..."

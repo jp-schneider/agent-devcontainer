@@ -43,7 +43,8 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
     env_file:
-      - ${LOCAL_WORKSPACE_FOLDER}/.env
+      # container.env, not .env: .env is host-only and masked in the container (protect-paths.sh)
+      - ${LOCAL_WORKSPACE_FOLDER}/container.env
       - ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared/.env
     networks:
       - dev

@@ -5,8 +5,9 @@
 1. Copy an existing variant folder, e.g. `.devcontainer/python-uv-cpu/` → `.devcontainer/<new>/`.
 2. In its `devcontainer.json`:
    - `name`: shown in the VS Code picker.
-   - `dockerComposeFile`: keep `../shared/compose.core.yml` first and
-     `../.generated/compose.host.yml` last. Add overlays in between.
+   - `dockerComposeFile`: keep `../shared/compose.core.yml` first, then
+     `../.generated/compose.host.yml`, and **`../.generated/compose.protect.yml` last**. Otherwise
+     a later file could override a protected mount.
    - `initializeCommand`: pass the toolchain name to `initialize.sh` (or none).
    - `postStartCommand`: call the toolchain's `post-start.sh` if it has one. Keep the socket cleanup.
    - `customizations.vscode.extensions`: stack-specific extensions.
@@ -49,6 +50,8 @@ Notes for planned toolchains:
 Put it in `.devcontainer/shared/compose.<feature>.yml` and document it in
 `.devcontainer/README.md`. Constraints:
 - An overlay must not repeat a mount target that core defines, or it replaces core's mount.
+- An overlay must not mount anything at or below a protected path (see [security.md](security.md)).
+  New host-executed paths belong in `protect-paths.sh`, not in an overlay.
 - Services it adds should join the `dev` network.
 
 ## Override the base image for one variant
