@@ -32,14 +32,9 @@ services:
       - ${GIT_MAIN_REPO_PATH}/.git:${GIT_MAIN_REPO_PATH}/.git:cached
       - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.claude.json:/home/vscode/.claude.json
       - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.bash_history:/home/vscode/.bash_history
-      # Persist uv Python versions and virtualenvs to speed up Python environment setup and avoid permission issues
-      - uv-python-versions:/home/vscode/.local/share/uv/python
-      - virtualenvs:/home/vscode/.virtualenvs
       - claude-config:/home/vscode/.claude
       # Playwright browser binaries — persisted so they survive container restarts
       #- playwright-browsers:/home/vscode/.cache/ms-playwright
-      # WSL2 GPU libraries — provides current libdxcore.so and CUDA WSL2 drivers from the Windows NVIDIA driver
-      - /usr/lib/wsl:/usr/lib/wsl:ro
       # Data Symlink
       # - ${DEVCONTAINER_DATA_PATH:-data/datasets}:/app/data/datasets:rw
     environment:
@@ -53,8 +48,7 @@ services:
     networks:
       - dev
     command: >
-      bash -c '. /home/vscode/.bashrc &&
-      curl -fsSL https://claude.ai/install.sh | bash;
+      bash -c '
       (for i in $$(seq 1 10); do sleep 30;
         find /tmp -maxdepth 2 \( -name "vscode-ipc-*.sock" -o -name "vscode-git-*.sock" \) -delete 2>/dev/null;
       done) &
@@ -66,10 +60,5 @@ networks:
     driver: bridge
 
 volumes:
-  uv-python-versions:
-    name: claude-code-uv-python-versions
-    external: true
-  virtualenvs:
-    name: claude-code-${WORKTREE_NAME:-project}-virtualenvs
   claude-config:
     name: claude-code-${WORKTREE_NAME:-project}-config

@@ -1,9 +1,12 @@
 # Overlay: read-only Docker API access via a socket proxy (no run/exec/build).
 # Note: CONTAINERS=1 lets the agent `docker inspect` every container on the
-# host, including their environment variables.
+# host, including their environment variables. Opt-in: add this file to a
+# variant's dockerComposeFile array (before the generated host overlay).
+# Never mount the raw /var/run/docker.sock into claude-code instead.
 services:
   docker-proxy:
-    image: tecnativa/docker-socket-proxy:latest
+    # v0.4.2, pinned by digest
+    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
     environment:
       CONTAINERS: 1
       IMAGES: 1

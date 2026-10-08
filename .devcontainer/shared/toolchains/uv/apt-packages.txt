@@ -1,0 +1,9 @@
+# System packages for the uv (Python) toolchain, installed as root at image build.
+# OpenCV
+ffmpeg libsm6 libxext6
+# Python build dependencies (sdists with C extensions)
+make build-essential libssl-dev zlib1g-dev
+libbz2-dev libreadline-dev libsqlite3-dev
+libncursesw5-dev tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libzstd-dev
+# Dependencies for tinycudann
+cmake gcc

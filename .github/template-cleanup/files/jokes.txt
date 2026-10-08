@@ -1,0 +1,10 @@
+It works on my machine. Which is why your machine is now a container.
+There are two hard problems in computer science: cache invalidation, naming things, and off-by-one errors.
+The agent asked for root. We said no. It wrote a strongly worded commit message instead.
+A container walks into a bar. The bartender says "we don't serve your kind here". The container says "that's fine, I brought my own runtime".
+Docker: because "just install it globally" ended three friendships.
+I would tell you a UDP joke, but you might not get it.
+This repository was hand-crafted by a template and lovingly cleaned up by a robot.
+Weeks of debugging can save you hours of reading the README.
+`cap_drop: ALL` – also known as the agent's least favourite line of YAML.
+Rubber duck debugging, but the duck now writes the code and you explain it to the duck.

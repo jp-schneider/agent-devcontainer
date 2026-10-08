@@ -1,0 +1,18 @@
+# Overlay: uv (Python) toolchain.
+services:
+  claude-code:
+    build:
+      args:
+        TOOLCHAIN: uv
+    volumes:
+      # Persist uv Python versions and virtualenvs to speed up Python environment setup and avoid permission issues
+      - uv-python-versions:/home/vscode/.local/share/uv/python
+      - virtualenvs:/home/vscode/.virtualenvs
+
+volumes:
+  uv-python-versions:
+    # Shared across projects; created by init-host.sh
+    name: claude-code-uv-python-versions
+    external: true
+  virtualenvs:
+    name: claude-code-${WORKTREE_NAME:-project}-virtualenvs

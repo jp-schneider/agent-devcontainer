@@ -1,6 +1,10 @@
 # Overlay: NVIDIA GPU access. Requires the NVIDIA container runtime on the host.
 services:
   claude-code:
+    build:
+      args:
+        BASE_IMAGE: nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+        IMAGE_VERSION: cuda-13.0.3-cudnn-ubuntu24.04
     deploy:
       resources:
         reservations:

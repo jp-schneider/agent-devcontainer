@@ -4,7 +4,7 @@
 # survive container restarts/rebuilds without living on the bind-mounted
 # /app. The link name matches $UV_PROJECT_ENVIRONMENT (a relative path,
 # e.g. ".venv-nagv2.ct", written per-worktree into .devcontainer/shared/.env by
-# initialize.sh), which uv itself resolves relative to each project's own
+# toolchains/uv/init-host.sh), which uv itself resolves relative to each project's own
 # root. Named ".venv-<worktree>.ct" (not ".venv") so it never collides with
 # a venv created on the host outside the container, and so each worktree's
 # link name stays distinct.
@@ -14,7 +14,7 @@ set -uo pipefail
 
 # env_file/environment values in the compose files are baked into the
 # container at creation time, not re-applied on every start — so if
-# initialize.sh regenerates .devcontainer/shared/.env after the container already
+# init-host.sh regenerates .devcontainer/shared/.env after the container already
 # exists (e.g. a plain start/resume rather than a recreate), the inherited
 # environment here can be stale. /app is bind-mounted, so re-source the
 # live files directly to always pick up the current values.

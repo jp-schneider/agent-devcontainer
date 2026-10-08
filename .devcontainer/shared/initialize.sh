@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
+# Runs on the host from the workspace root (devcontainer initializeCommand).
+# Usage: initialize.sh [<toolchain>]   e.g. "uv"; omit for core only
+
+TOOLCHAIN="${1:-}"
 
 echo "Initializing devcontainer environment..."
 
@@ -27,8 +31,13 @@ echo "HOST_HOME=$HOME" >> .devcontainer/shared/.env
 echo "HOST_UID=$(id -u)" >> .devcontainer/shared/.env
 echo "HOST_GID=$(id -g)" >> .devcontainer/shared/.env
 
-echo "UV_VENVS_ROOT=/home/vscode/.virtualenvs/$(basename "$PWD")-devcontainer" >> .devcontainer/shared/.env
-echo "UV_PROJECT_ENVIRONMENT=.venv-$(basename "$PWD").ct" >> .devcontainer/shared/.env
+# Toolchain host-side hook (toolchains/<name>/init-host.sh), toolchain passed by the variant
+if [ -n "$TOOLCHAIN" ] && [ -f ".devcontainer/shared/toolchains/$TOOLCHAIN/init-host.sh" ]; then
+    echo "Running $TOOLCHAIN toolchain host init..."
+    bash ".devcontainer/shared/toolchains/$TOOLCHAIN/init-host.sh" .devcontainer/shared/.env
+fi
+
+bash .devcontainer/shared/host-override.sh .devcontainer/.generated/compose.host.yml
 echo "Done."
 
 echo "Creating .claude-docker directory and files..."

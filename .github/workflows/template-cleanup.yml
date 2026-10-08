@@ -1,0 +1,44 @@
+name: Template cleanup
+
+# Runs once in repos created from this template: resets CLAUDE.md, README.md and
+# .claude/ via .github/template-cleanup/cleanup.sh and commits the result.
+# No-op in the template repo itself and once .github/template-cleanup/ is gone,
+# so this file can stay in derived repos (a GITHUB_TOKEN push can't delete it).
+# If it can't push (e.g. GITHUB_TOKEN restricted to read), run the script by hand.
+
+on:
+  push:
+  create:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# create and push both fire on repo creation; run them one after the other
+concurrency:
+  group: template-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.repository != 'jp-schneider/devcontainer' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # Branch tip, not the triggering SHA, so a queued second run sees the cleanup commit
+          ref: ${{ github.ref }}
+      - name: Clean up template files
+        env:
+          PROJECT_NAME: ${{ github.event.repository.name }}
+        run: |
+          if [ ! -d .github/template-cleanup ]; then
+            echo "Nothing to clean up"
+            exit 0
+          fi
+          bash .github/template-cleanup/cleanup.sh "$PROJECT_NAME"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Clean up template files"
+          git push

@@ -1,0 +1,67 @@
+{
+  "name": "Claude Code · python-uv-cpu",
+  "dockerComposeFile": [
+    "../shared/compose.core.yml",
+    "../shared/toolchains/uv/compose.yml",
+    "../.generated/compose.host.yml"
+  ],
+  "service": "claude-code",
+  "workspaceFolder": "/app",
+  "remoteUser": "vscode",
+  "shutdownAction": "stopCompose",
+  "remoteEnv": {
+    // First layer of defence – VS Code re-injects some of these, so the
+    // security-harden.sh script sourced from .bashrc is the real safeguard.
+    "SSH_AUTH_SOCK": "",
+    "GPG_AGENT_INFO": "",
+    "BROWSER": "",
+    "VSCODE_IPC_HOOK_CLI": null,
+    "VSCODE_GIT_IPC_HANDLE": null,
+    "GIT_ASKPASS": null,
+    "VSCODE_GIT_ASKPASS_MAIN": null,
+    "VSCODE_GIT_ASKPASS_NODE": null,
+    "VSCODE_GIT_ASKPASS_EXTRA_ARGS": null,
+    "REMOTE_CONTAINERS_IPC": null,
+    "REMOTE_CONTAINERS_SOCKETS": null,
+    "REMOTE_CONTAINERS_DISPLAY_SOCK": null,
+    "WAYLAND_DISPLAY": null
+  },
+  "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "uv"],
+  // postStartCommand: link each project's .venv into the persisted virtualenvs
+  // volume (re-run every start so newly added projects get picked up), then
+  // clean up sockets created before VS Code attaches
+  "postStartCommand": "bash /app/.devcontainer/shared/toolchains/uv/post-start.sh; find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
+  // IPC socket cleanup (vscode-ipc-*.sock, vscode-git-*.sock) is handled by a background
+  // loop in the Docker Compose command – postAttachCommand is unreliable for background
+  // processes due to VS Code's cgroup-based lifecycle cleanup.
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "dev.containers.dockerCredentialHelper": false,
+        "dev.containers.copyGitConfig": false,
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.automationProfile.linux": {
+          "path": "/bin/bash"
+        },
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash"
+          }
+        }
+      },
+      "extensions": [
+        "ms-python.autopep8",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "anthropic.claude-code",
+        "ms-azuretools.vscode-docker",
+        "astral-sh.ty",
+        "charliermarsh.ruff",
+        "mhutchie.git-graph",
+        "ms-toolsai.jupyter",
+        "augustocdias.tasks-shell-input",
+        "nuriyev.claude-code-katex"
+      ]
+    }
+  }
+}
