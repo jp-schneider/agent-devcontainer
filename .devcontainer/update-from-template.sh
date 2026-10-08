@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Merges updates from the devcontainer template into a repo created from it.
-# Keeps this repo's own CLAUDE.md, README.md and .claude/, and drops the
+# Keeps this repo's own CLAUDE.md, README.md, .claude/ and docs/, and drops the
 # template-only .github/template-cleanup/. Leaves the merge uncommitted for review.
 # Run from the repo root on a clean working tree. Bash 3.2 compatible (macOS).
 #
@@ -10,7 +10,7 @@ set -euo pipefail
 url="${1:-https://github.com/jp-schneider/devcontainer.git}"
 branch="${2:-main}"
 # Paths owned by this repo, not by the template
-own_paths="CLAUDE.md README.md .claude .github/template-cleanup"
+own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup"
 
 if [ -n "$(git status --porcelain)" ]; then
     echo "update-from-template: working tree not clean, commit or stash first" >&2

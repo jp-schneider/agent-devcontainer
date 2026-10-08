@@ -94,7 +94,7 @@ bash .devcontainer/update-from-template.sh   # optional: <template-url> <branch>
 ```
 
 - **Merge behaviour:** it merges `template/main` without committing, keeps this repo's own
-  `CLAUDE.md`, `README.md` and `.claude/`, and drops template-only files.
+  `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files.
 - **First run:** expect conflicts in every template file you have changed, or that the template
   has changed since you created the repo. That's because there is no common ancestor yet.
   Later updates merge normally.
