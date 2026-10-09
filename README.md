@@ -1,6 +1,6 @@
 # devcontainer
 
-GitHub template for hardened devcontainers in which coding agents (Claude Code) can run safely.
+GitHub template for hardened devcontainers in which coding agents, currently claude code can run more safely.
 It has a shared hardened core plus per-stack variants (currently `python-uv-gpu` and
 `python-uv-cpu`), and works on WSL2, native Linux and macOS.
 
