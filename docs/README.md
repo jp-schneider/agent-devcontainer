@@ -17,12 +17,14 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ```
 .devcontainer/
 ├── README.md                    user guide (kept in derived repos)
+├── CUSTOMIZING.md               FAQ + best practices for template users (kept in derived repos)
 ├── update-from-template.sh      merge template updates into a derived repo
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
+├── compose.project.yml          project compose file: mounts, services, resources (project-owned)
 ├── apt-packages.txt             optional: project apt packages (all variants)
 ├── <variant>/apt-packages.txt   variant apt packages (Python variants: OpenCV runtime by default)
 ├── .dockerignore                build context = .devcontainer/; only Dockerfile, toolchains, apt list

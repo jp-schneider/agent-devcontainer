@@ -4,6 +4,7 @@
     "../shared/compose.core.yml",
     "../shared/compose.gpu.yml",
     "../shared/toolchains/uv/compose.yml",
+    "../compose.project.yml",
     "../.generated/compose.host.yml",
     "../.generated/compose.protect.yml"
   ],
@@ -73,6 +74,7 @@
         "ms-azuretools.vscode-docker",
         "astral-sh.ty",
         "charliermarsh.ruff",
+        "esbenp.prettier-vscode",
         "mhutchie.git-graph",
         "ms-toolsai.jupyter",
         "augustocdias.tasks-shell-input",

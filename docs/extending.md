@@ -5,7 +5,8 @@
 1. Copy an existing variant folder, e.g. `.devcontainer/python-uv-cpu/` → `.devcontainer/<new>/`.
 2. In its `devcontainer.json`:
    - `name`: shown in the VS Code picker.
-   - `dockerComposeFile`: keep `../shared/compose.core.yml` first, then
+   - `dockerComposeFile`: keep `../shared/compose.core.yml` first, `../compose.project.yml` after
+     the template overlays, then
      `../.generated/compose.host.yml`, and **`../.generated/compose.protect.yml` last**. Otherwise
      a later file could override a protected mount.
    - `initializeCommand`: `["bash", ".devcontainer/shared/initialize.sh", "<variant>", "<toolchain>"]`.

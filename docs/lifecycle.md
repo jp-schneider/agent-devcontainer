@@ -49,7 +49,8 @@ derived repo:
    `https://github.com/jp-schneider/devcontainer.git`, `main`).
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update).
-4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup`):
+4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
+   .devcontainer/compose.project.yml`):
    - if the derived repo has it, removes files the template *added* under it and restores the
      repo's version (this also resolves conflicts there);
    - otherwise removes the template's copy.

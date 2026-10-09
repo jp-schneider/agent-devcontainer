@@ -6,9 +6,9 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
 
 1. **Host: `initializeCommand`.** It runs `bash .devcontainer/shared/initialize.sh <variant> <toolchain>`
    from the workspace root. The script:
-   - creates empty `.env` (host-only; `DEVCONTAINER_DATA_PATH` / `DEVCONTAINER_RUNS_PATH`) and
+   - creates empty `.env` (host-only; its `DEVCONTAINER_*` lines become compose variables) and
      `container.env` (passed to the container) if missing;
-   - rewrites `.devcontainer/shared/.env` with `WORKTREE_NAME`, `PROJECT_SLUG`,
+   - rewrites `.devcontainer/shared/.env`: the `DEVCONTAINER_*` lines of `.env` (unchanged), then `WORKTREE_NAME`, `PROJECT_SLUG`,
      `GIT_MAIN_REPO_PATH`, `LOCAL_WORKSPACE_FOLDER`, `HOST_HOME`, `HOST_UID`, `HOST_GID`;
    - runs `toolchains/<toolchain>/init-host.sh .devcontainer/shared/.env` if it exists. For uv it
      appends `UV_*` and runs `docker volume create claude-code-uv-python-versions`;
@@ -37,6 +37,7 @@ shared/compose.core.yml                 always first
 shared/compose.gpu.yml                  optional
 shared/compose.docker-proxy.yml         optional
 shared/toolchains/<name>/compose.yml    toolchain
+.devcontainer/compose.project.yml       project-owned: mounts, services, resources
 ../.generated/compose.host.yml          generated: host-specific mounts
 ../.generated/compose.protect.yml       generated, always last: read-only protection
 ```

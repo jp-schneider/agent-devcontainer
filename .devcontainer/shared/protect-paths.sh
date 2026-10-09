@@ -150,6 +150,13 @@ done < <(find . \( -path ./.git -o -name node_modules \) -prune -o -type f -prin
     | sed 's|^\./||' | grep -E -f "$deny" | { if [ -s "$allow" ]; then grep -v -E -f "$allow"; else cat; fi; })
 rm -f "$out.patterns" "$deny" "$allow"
 
+# Generated files with interpolated .env values: shared/.env (matches the .env patterns above)
+# and the resolved config (written after this script by resolve-config.sh, so mask it explicitly;
+# the placeholder makes the mount target exist on the very first start)
+resolved="$ws/.devcontainer/.generated/compose.resolved.yml"
+[ -e "$resolved" ] || : > "$resolved"
+bind /dev/null /app/.devcontainer/.generated/compose.resolved.yml true
+
 if [ -n "$main_git" ]; then
     targets="$main_git"
     # Main worktree: the same gitdir is also reachable through the workspace mount

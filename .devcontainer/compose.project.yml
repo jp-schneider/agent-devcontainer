@@ -1,0 +1,21 @@
+# Project-specific compose additions: mounts, services, resources. Yours to edit; template
+# updates leave this file alone. Listed in every variant after the template files and before the
+# generated overlays, so the protections still win. See CUSTOMIZING.md.
+#
+# ${DEVCONTAINER_*} works for every DEVCONTAINER_* line in the root .env (host-only; e.g.
+# DATA_PATH for local runs and DEVCONTAINER_DATA_PATH for the container can differ). Values you use here
+# can become visible in the container (mount paths via /proc/self/mountinfo; anything you put
+# in environment:), so don't reference secrets which need to stay private from the container. 
+# Use .env for secrets and other host-only values, and use the .env.template to document them.
+services:
+  claude-code: {}
+#   volumes:
+#     - type: bind
+#       source: ${DEVCONTAINER_DATA_PATH}   # DEVCONTAINER_DATA_PATH=/mnt/storage/data in .env
+#       target: /data
+#       read_only: true
+#   shm_size: "8gb"
+#
+# db:
+#   image: postgres:16.4
+#   networks: [dev]

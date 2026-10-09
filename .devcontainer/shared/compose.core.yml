@@ -37,8 +37,6 @@ services:
       - claude-config:/home/vscode/.claude
       # Playwright browser binaries — persisted so they survive container restarts
       #- playwright-browsers:/home/vscode/.cache/ms-playwright
-      # Data Symlink
-      # - ${DEVCONTAINER_DATA_PATH:-data/datasets}:/app/data/datasets:rw
     environment:
       # Required for HMR file watching in WSL/Docker
       WATCHPACK_POLLING: "true"

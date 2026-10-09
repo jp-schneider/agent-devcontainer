@@ -109,7 +109,11 @@ It does so automatically, too: host VS Code detects repos in subfolders, and git
   edit them to unmask files at the next start.
 - `.git/` and `node_modules/` aren't scanned, and symlinks aren't masked.
 - A missing defaults file aborts the start.
-- **`.env`** is host-only. `initialize.sh` reads `DEVCONTAINER_DATA_PATH`/`RUNS_PATH` from it.
+- **`.env`** is host-only. `initialize.sh` copies only its `DEVCONTAINER_*` lines, unchanged, into
+  `shared/.env`, as `${DEVCONTAINER_*}` for compose files. The prefix rules out collisions with
+  compose's own `COMPOSE_*` settings and the generated keys. `shared/.env` is masked
+  too (it matches the `.env` pattern). A value only reaches the container if a compose file
+  references it (a mount path, or `environment:`).
   Because the agent can't write it, those values are trusted.
 
 ## What the container can see about the host (not confidential)
@@ -122,8 +126,8 @@ be hidden with this design:
   process can read it, and Docker doesn't mask it.
 - **Absolute host paths in the container are unavoidable:** the main repo's `.git` is mounted at
   its real host path so git worktrees resolve.
-- **Generated files are readable:** `.devcontainer/shared/.env` (paths, UID/GID, project name)
-  and `.devcontainer/.generated/*.yml` (overlays, resolved config).
+- **The generated overlays are readable:** `.devcontainer/.generated/compose.{host,protect}.yml`.
+  `shared/.env` and `compose.resolved.yml` are masked, because they contain interpolated `.env` values.
 
 So masking these files wouldn't add confidentiality, which is why they stay visible. Don't
 encode secrets in paths or directory names.
@@ -133,7 +137,7 @@ encode secrets in paths or directory names.
   (e.g. `UV_VENVS_ROOT`, `UV_PROJECT_ENVIRONMENT` from `toolchains/uv/compose.yml`).
 - **Not passed in:** the host-side values in `shared/.env` (`HOST_HOME`, `HOST_UID`/`GID`,
   `LOCAL_WORKSPACE_FOLDER`, `GIT_MAIN_REPO_PATH`, `WORKTREE_NAME`, `PROJECT_SLUG`,
-  `DEVCONTAINER_*_PATH`). They are only used for compose interpolation. This is tidiness, not
+  everything copied from `.env`). They are only used for compose interpolation. This is tidiness, not
   confidentiality: see above.
 
 ## Known limitations
