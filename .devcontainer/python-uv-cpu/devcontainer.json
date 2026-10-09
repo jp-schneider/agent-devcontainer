@@ -40,6 +40,20 @@
       "settings": {
         "dev.containers.dockerCredentialHelper": false,
         "dev.containers.copyGitConfig": false,
+        // Container only (not .vscode/settings.json, which the host shares): hide files that are
+        // masked here (empty, read-only; see shared/mask-patterns.txt). Cosmetic; globs approximate
+        // the regexes and cannot exclude container.env from *.env, so *.env is not listed.
+        "files.exclude": {
+          "**/.git": true, "**/.svn": true, "**/.hg": true, "**/CVS": true, "**/.DS_Store": true, "**/Thumbs.db": true,
+          "**/.env": true, "**/.env.*": true,
+          "**/*.pem": true, "**/*.key": true, "**/*.p12": true, "**/*.pfx": true, "**/*.jks": true, "**/*.keystore": true, "**/*.kdbx": true,
+          "**/id_rsa": true, "**/id_dsa": true, "**/id_ecdsa": true, "**/id_ed25519": true,
+          "**/.netrc": true, "**/.npmrc": true, "**/.pypirc": true, "**/.git-credentials": true, "**/.htpasswd": true,
+          "**/.aws/credentials": true, "**/.aws/config": true, "**/.docker/config.json": true,
+          "**/credentials": true, "**/credentials.{json,yaml,yml,toml,ini,txt,cfg,conf}": true,
+          "**/secret{,s}": true, "**/secret{,s}.{json,yaml,yml,toml,ini,txt,cfg,conf}": true,
+          "**/*.tfvars": true, "**/terraform.tfstate{,.backup}": true
+        },
         "terminal.integrated.defaultProfile.linux": "bash",
         "terminal.integrated.automationProfile.linux": {
           "path": "/bin/bash"

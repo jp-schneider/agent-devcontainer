@@ -15,7 +15,9 @@
 3. **Keep `remoteEnv` and the VS Code security settings identical to the other variants.**
    devcontainer.json has no include mechanism, so these are duplicated
    (see [security.md](security.md)).
-4. Add the variant to the table in `.devcontainer/README.md`.
+4. Adjust the variant's `apt-packages.txt`: Python variants ship the OpenCV runtime, other stacks
+   usually don't need it.
+5. Add the variant to the table in `.devcontainer/README.md`.
 
 ## Add a toolchain
 
@@ -34,6 +36,8 @@ Checklist:
   Volumes shared across projects are `external: true` and created in `init-host.sh`. Compose
   would otherwise label them with whichever project created them first.
 - **Toolchain-specific state:** don't put it in core; core must stay toolchain-agnostic.
+- **apt packages:** only what the toolchain itself needs. Project-specific packages (OpenCV,
+  CUDA extensions, …) belong in the project's `.devcontainer/apt-packages.txt`.
 - **Environment variables:** `init-host.sh` writes them to `shared/.env`, which is **not** passed
   into the container. Pass the ones the container needs explicitly in the toolchain's `compose.yml`
   (`environment: {VAR: ${VAR}}`).
@@ -55,6 +59,8 @@ Put it in `.devcontainer/shared/compose.<feature>.yml` and document it in
 `.devcontainer/README.md`. Constraints:
 - An overlay must not repeat a mount target that core defines, or it replaces core's mount.
 - An overlay must not mount anything at or below a protected path (see [security.md](security.md)).
+- New secret-file patterns: add them to `mask-patterns.txt` (regex) and, as globs, to
+  `claude-settings.default.json` and the variants' `files.exclude`.
   New host-executed paths belong in `protect-paths.sh`, not in an overlay.
 - Services it adds should join the `dev` network.
 

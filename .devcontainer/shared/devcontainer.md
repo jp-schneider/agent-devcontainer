@@ -5,7 +5,7 @@ Use container hostnames, NOT localhost:
 - The app container is named after the worktree directory (e.g., `platform-feature-branch`)
 
 ## Docker Access
-None by default: the Docker socket is not mounted. If the variant enables the
+None by default: the Docker socket is not mounted and the `docker` CLI is not installed. If the variant enables the
 `compose.docker-proxy.yml` overlay, read-only access is available, see
 `devcontainer.docker-proxy.md`.
 

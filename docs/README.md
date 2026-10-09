@@ -23,6 +23,9 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
+├── apt-packages.txt             optional: project apt packages (all variants)
+├── <variant>/apt-packages.txt   variant apt packages (Python variants: OpenCV runtime by default)
+├── .dockerignore                build context = .devcontainer/; only Dockerfile, toolchains, apt list
 └── shared/
     ├── Dockerfile               one image definition for all variants
     ├── compose.core.yml         hardened core, always first
@@ -32,6 +35,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
     ├── host-override.sh         host detection → .generated/compose.host.yml
     ├── protect-paths.sh         read-only binds + secret masks → .generated/compose.protect.yml
     ├── mask-patterns.txt        regexes of files hidden from the container
+    ├── claude-settings.default.json  default .claude/settings.json: deny rules for secret files
     ├── resolve-config.sh        docker compose config → .generated/compose.resolved.yml
     ├── devcontainer.md          agent-facing environment notes (imported by CLAUDE.md)
     ├── devcontainer.docker-proxy.md

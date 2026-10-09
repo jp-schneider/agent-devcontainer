@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     htop \
     less \
     tree \
-    docker-cli \
     wget \
     locales \
     unzip \
@@ -33,12 +32,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Remove apt lists to reduce image size
     && rm -rf /var/lib/apt/lists/*
 
+# Docker CLI, only useful with the docker-proxy overlay (which sets DOCKER_CLI=1)
+ARG DOCKER_CLI=0
+RUN if [[ "$DOCKER_CLI" == 1 ]]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends docker-cli \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # Toolchain-specific system packages (toolchains/<name>/apt-packages.txt, one per line, # comments allowed)
-COPY toolchains/ /opt/devcontainer/toolchains/
+COPY shared/toolchains/ /opt/devcontainer/toolchains/
 RUN pkgs_file="/opt/devcontainer/toolchains/${TOOLCHAIN}/apt-packages.txt"; \
     if [[ -f "$pkgs_file" ]]; then \
         apt-get update \
         && sed 's/#.*//' "$pkgs_file" | xargs apt-get install -y --no-install-recommends \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Project/variant system packages, merged by initialize.sh from .devcontainer/apt-packages.txt
+# and .devcontainer/<variant>/apt-packages.txt; "pkg=version" pins are passed to apt as-is
+COPY .generated/apt-packages.txt /opt/devcontainer/apt-packages.txt
+RUN if grep -q '[^[:space:]]' /opt/devcontainer/apt-packages.txt; then \
+        apt-get update \
+        && xargs apt-get install -y --no-install-recommends < /opt/devcontainer/apt-packages.txt \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 

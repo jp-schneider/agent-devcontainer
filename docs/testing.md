@@ -15,6 +15,7 @@ has a README with the exact command.
 | apt package set | Moving packages between Dockerfile and `apt-packages.txt` keeps the set | `*-toolchain-split-check` |
 | Host override | `host-override.sh` output for WSL and generic hosts (`PROC_VERSION` test hook) | `*-host-override-check` |
 | Template flow | cleanup + two template updates on throwaway repos (`test.sh`, 21 checks) | `*-template-flow-check` |
+| initialize.sh integration | full `initialize.sh` on a repo copy with fake `docker`: merged apt lists (project + variant, pins, comments), generated files, planted-repo abort (10 checks) | `*-initialize-integration-check` |
 | Resolved config | `resolve-config.sh`: compose list extracted from each variant, order, failure handling (fake `docker`, 8 checks) | `*-resolve-config-check` |
 | Path protection | `protect-paths.sh`: generated read-only binds (main worktree, linked worktree, submodule), planted-repo aborts, allowlist, mask patterns (defaults, project file, allow lines), awkward paths, host-only switch, allowlisted nested repos and pointer files (`test.sh`, 42 checks) | `*-protect-paths-check` |
 
@@ -40,7 +41,8 @@ After changes to the Dockerfile, compose files or host scripts:
    - `ls /usr/lib/wsl` (WSL only).
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.
-   - `docker ps` should fail unless the proxy overlay is enabled.
+   - `docker` is not installed unless the proxy overlay is enabled (then `docker ps` works).
+   - Project packages from `.devcontainer/apt-packages.txt` are installed (`dpkg -l <pkg>`).
    - Protection (each write must fail, with "Read-only file system" or "Device or resource busy"):
      `touch /app/.devcontainer/x`, `touch /app/.git/hooks/x`, `git config foo.bar 1`,
      `echo {} > /app/.claude/settings.json`, `mv /app/.vscode /app/v2`.

@@ -1,9 +1,7 @@
 # System packages for the uv (Python) toolchain, installed as root at image build.
-# OpenCV
-ffmpeg libsm6 libxext6
-# Python build dependencies (sdists with C extensions)
-make build-essential libssl-dev zlib1g-dev
+# Project-specific packages (e.g. OpenCV's ffmpeg libsm6 libxext6, cmake for tinycudann) belong in
+# .devcontainer/apt-packages.txt or .devcontainer/<variant>/apt-packages.txt, not here.
+# Python build dependencies (sdists with C extensions); build-essential includes gcc and make
+build-essential libssl-dev zlib1g-dev
 libbz2-dev libreadline-dev libsqlite3-dev
 libncursesw5-dev tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libzstd-dev
-# Dependencies for tinycudann
-cmake gcc

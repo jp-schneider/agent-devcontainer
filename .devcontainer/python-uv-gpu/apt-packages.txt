@@ -1,0 +1,7 @@
+# Variant apt packages, installed at image build on top of .devcontainer/apt-packages.txt (all
+# variants, optional). Whitespace-separated, "#" comments, optional version pins (pkg=version).
+# Read-only to the agent; rebuild after changes.
+
+# OpenCV runtime, default for Python variants (opencv-python needs libGL/GLib at import; ffmpeg
+# for video I/O). opencv-python-headless only needs ffmpeg; remove what your project doesn't use.
+ffmpeg libgl1 libglib2.0-0 libsm6 libxext6

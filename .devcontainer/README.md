@@ -4,6 +4,12 @@ A hardened development container for running coding agents (Claude Code) with li
 radius: no root, all capabilities dropped, no SSH/GPG agent, VS Code escape hatches cleared, and
 no Docker socket by default.
 
+> **Security disclaimer:** best-effort hardening, not a guarantee. Known gaps include no egress
+> filtering and no protection for code you run on the host yourself. Review what the agent changed
+> before running it on your host. Provided "as is", without warranty. Report security problems
+> privately via the template repository's "Report a vulnerability"
+> ([jp-schneider/devcontainer](https://github.com/jp-schneider/devcontainer)).
+
 ## Choosing a variant
 
 Each folder with a `devcontainer.json` is one variant. VS Code ("Reopen in Container") and the
@@ -71,6 +77,11 @@ Commits still work; `git config`, `push -u`, `submodule init`, `worktree add` an
 submodules don't. Placeholders for these paths are created on first start (`.vscode/`,
 `.claude/settings*.json`, `.mcp.json`). Commit them or leave them untracked.
 
+**Secret files** are also denied to Claude Code (`.claude/settings.json`, created from
+`shared/claude-settings.default.json` if missing; this matters when you run Claude on the host) and
+hidden in the container's VS Code Explorer (`files.exclude` in each variant's `devcontainer.json`).
+If you add mask patterns, consider adding matching deny rules.
+
 **Nested git repositories:**
 - **Known ones are protected like the main repo:** submodules, and directories listed in
   `.devcontainer/allowed-nested-git.txt` (one path per line, relative to the workspace root).
@@ -106,6 +117,25 @@ container on the host. Never mount `/var/run/docker.sock` directly instead.
 
 Host detection lives in `shared/host-override.sh`. Its output (`.devcontainer/.generated/`)
 is gitignored.
+
+## System packages
+
+Project apt packages go in `.devcontainer/apt-packages.txt` (all variants) and/or
+`.devcontainer/<variant>/apt-packages.txt` (one variant). The Python variants
+ship a variant file with the **OpenCV runtime** (`ffmpeg libgl1 libglib2.0-0 libsm6 libxext6`);
+edit or remove it for your project. Format: whitespace-separated, `#`
+comments, optional version pins. Both files are read-only to the agent. Rebuild the container
+after changing them.
+
+```
+# .devcontainer/apt-packages.txt
+ffmpeg libsm6 libxext6        # OpenCV runtime
+cmake=3.28.3-1build7          # pinned version
+```
+
+Pinned versions can disappear from the Ubuntu archive after updates, and the build then fails.
+Pin only where you need to. The uv toolchain installs only Python build dependencies; the Docker
+CLI is only installed with the docker-proxy overlay.
 
 ## Toolchains
 

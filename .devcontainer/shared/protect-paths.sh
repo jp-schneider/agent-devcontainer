@@ -29,9 +29,10 @@ fi
 
 # --- Placeholders: a path must exist to be bind-mounted read-only
 mkdir -p .vscode .claude
-for f in .claude/settings.json .claude/settings.local.json; do
-    [ -e "$f" ] || echo '{}' > "$f"
-done
+# settings.json starts from the template default: Read/Edit deny rules for secret files, mirroring
+# mask-patterns.txt as globs (matters for Claude Code run on the host; keep both in sync)
+[ -e .claude/settings.json ] || cp "$(dirname "$defaults_patterns")/claude-settings.default.json" .claude/settings.json
+[ -e .claude/settings.local.json ] || echo '{}' > .claude/settings.local.json
 [ -e .mcp.json ] || echo '{"mcpServers": {}}' > .mcp.json
 
 # --- Git layout. Mirrors GIT_MAIN_REPO_PATH in initialize.sh: the main repo's .git

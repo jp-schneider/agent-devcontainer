@@ -14,7 +14,9 @@ services:
   claude-code:
     hostname: ${WORKTREE_NAME:-project}-devcontainer
     build:
-      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared
+      # Whole .devcontainer/ (project apt lists, .generated/); .dockerignore keeps the rest out
+      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer
+      dockerfile: shared/Dockerfile
       args:
         USER_UID: ${HOST_UID:-1000}
         USER_GID: ${HOST_GID:-1000}

@@ -42,6 +42,14 @@ if [ -n "$TOOLCHAIN" ] && [ -f ".devcontainer/shared/toolchains/$TOOLCHAIN/init-
     bash ".devcontainer/shared/toolchains/$TOOLCHAIN/init-host.sh" .devcontainer/shared/.env
 fi
 
+# Extra system packages for the image: project-wide + variant-specific lists, comments stripped,
+# one package (optionally "pkg=version") per line. Always written, so the Dockerfile can COPY it.
+mkdir -p .devcontainer/.generated
+for f in .devcontainer/apt-packages.txt ".devcontainer/$VARIANT/apt-packages.txt"; do
+    [ -n "$VARIANT" ] || [ "$f" = .devcontainer/apt-packages.txt ] || continue
+    [ -f "$f" ] && sed 's/#.*//' "$f"
+done | tr -s '[:space:]' '\n' | sed '/^$/d' > .devcontainer/.generated/apt-packages.txt
+
 bash .devcontainer/shared/host-override.sh .devcontainer/.generated/compose.host.yml
 # Read-only protection of host-executed paths; aborts the start on planted nested repos
 bash .devcontainer/shared/protect-paths.sh .devcontainer/.generated/compose.protect.yml || exit 1

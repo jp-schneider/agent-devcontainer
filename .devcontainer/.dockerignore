@@ -1,0 +1,5 @@
+# Build context is .devcontainer/ (see shared/compose.core.yml); send only what the Dockerfile uses
+*
+!shared/Dockerfile
+!shared/toolchains/
+!.generated/apt-packages.txt

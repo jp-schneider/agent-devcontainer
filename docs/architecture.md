@@ -80,6 +80,7 @@ build args that the overlays set:
 | `BASE_IMAGE` | `ubuntu:24.04` | `compose.gpu.yml` → `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04` |
 | `IMAGE_VERSION` | `ubuntu24.04` | `compose.gpu.yml` (image label only) |
 | `TOOLCHAIN` | `none` | `toolchains/<name>/compose.yml` |
+| `DOCKER_CLI` | `0` | `compose.docker-proxy.yml` → `1` (the Docker CLI is useless without the proxy) |
 | `USER_UID` / `USER_GID` | `1000` | `compose.core.yml`, from `HOST_UID`/`HOST_GID` |
 
 **Base image resolution:** the Dockerfile default, unless an overlay in the list sets
@@ -89,7 +90,8 @@ Debian/Ubuntu-based (the Dockerfile uses `apt-get`, `locale-gen`, `usermod`).
 
 Build order:
 1. Core apt packages.
-2. The toolchain's `apt-packages.txt`, as root.
+2. Docker CLI, only if `DOCKER_CLI=1`; then the toolchain's `apt-packages.txt`; then the project and
+   variant packages (`.generated/apt-packages.txt`, see below); all as root.
 3. Locale.
 4. User creation, matching the host UID/GID. This renames an existing user/group with that ID,
    e.g. `ubuntu` (1000) on Ubuntu 24.04 images, or `dialout` (GID 20) on macOS hosts.
@@ -97,7 +99,17 @@ Build order:
 6. Claude Code (native installer).
 7. The toolchain's `install.sh`, as the user.
 
-`COPY toolchains/` copies all toolchains, so editing any toolchain invalidates the cache from
+**Build context** is `.devcontainer/` (`dockerfile: shared/Dockerfile`), so the project's package
+lists are reachable. `.devcontainer/.dockerignore` sends only `shared/Dockerfile`,
+`shared/toolchains/` and `.generated/apt-packages.txt`, which keeps generated files with inlined
+`container.env` and `.env` files out of the build.
+
+**Project and variant packages.** `initialize.sh <variant>` merges `.devcontainer/apt-packages.txt`
+(all variants) and `.devcontainer/<variant>/apt-packages.txt` into `.generated/apt-packages.txt`:
+comments stripped, one package per line. The file is always written, possibly empty, so the
+Dockerfile can `COPY` it unconditionally. `pkg=version` pins go to `apt-get` as-is.
+
+`COPY shared/toolchains/` copies all toolchains, so editing any toolchain invalidates the cache from
 that layer on for every variant. That's acceptable at the current size.
 
 ## Host-specific configuration

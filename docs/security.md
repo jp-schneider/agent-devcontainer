@@ -4,6 +4,9 @@
 malicious dependencies, should not be able to act on the host or on remote accounts beyond the
 workspace it was given.
 
+**This is best-effort hardening, not a guarantee.** It reduces the blast radius; it doesn't make
+running an agent risk-free. The sections below say what is covered and what is not.
+
 ## Layers
 
 | Threat | Mitigation | Where |
@@ -79,6 +82,20 @@ It does so automatically, too: host VS Code detects repos in subfolders, and git
   and unpacking an archive all work. The agent is instructed to clone into `/tmp` (inside the
   container only). Detection happens at the next start; see "Known limitations" for the gap in between.
 - **Old-style submodules:** ones with a `.git` *directory* need `git submodule absorbgitdirs` once.
+
+**Secret files, two more layers on top of masking:**
+- **Claude Code deny rules:** `.claude/settings.json` starts from
+  `.devcontainer/shared/claude-settings.default.json`, with `Read(...)`/`Edit(...)` deny rules for
+  the same files as globs. `protect-paths.sh` copies it if the file is missing. In the container
+  this only saves pointless reads. **On the host** it keeps a Claude Code session from reading the
+  real secrets. Limits:
+  - Read rules govern Claude's file tools; a shell command like `cat .env` is not reliably covered.
+  - Globs can't express exceptions, so `.env.example` is denied too.
+- **Container VS Code `files.exclude`** (in each variant's `devcontainer.json`, not
+  `.vscode/settings.json`, which the host shares): hides the masked files in the Explorer. This is
+  cosmetic only. `*.env` isn't listed, because it would also hide `container.env`.
+- **Three lists to keep in sync:** `mask-patterns.txt` (regex, the actual protection), the deny
+  rules, and `files.exclude`.
 
 **Env files:**
 - **`container.env`** (repo root, gitignored) is the only file passed into the container
