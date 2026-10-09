@@ -18,7 +18,8 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 .devcontainer/
 ├── README.md                    user guide (kept in derived repos)
 ├── CUSTOMIZING.md               FAQ + best practices for template users (kept in derived repos)
-├── update-from-template.sh      merge template updates into a derived repo
+├── update-from-template.sh      merge template updates into a derived repo (default: latest release tag)
+├── VERSION                      template version of this checkout (kept in derived repos)
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
@@ -46,6 +47,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── workflows/template-cleanup.yml
 └── template-cleanup/            cleanup.sh + files/ (generic CLAUDE.md, skeletons, jokes)
 docs/                            this folder (template only)
+SECURITY.md, CONTRIBUTING.md, CHANGELOG.md   template only (removed by cleanup, never merged into derived repos)
 CLAUDE.md, .claude/              template development history (template only)
 ```
 

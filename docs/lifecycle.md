@@ -13,7 +13,8 @@ template-only files are removed afterwards by a workflow.
 [cleanup.sh](../.github/template-cleanup/cleanup.sh) once and commits the result.
 
 **What it does:**
-- Removes `docs/` and `.claude/{plans,scratchpad,knowledge,memory}`. Other `.claude/` files,
+- Removes the template-only `docs/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
+  `.github/ISSUE_TEMPLATE/` and `.claude/{plans,scratchpad,knowledge,memory}`. Other `.claude/` files,
   e.g. `settings.json`, are kept.
 - Writes fresh `.claude/overview.md` and `.claude/memory/MEMORY.md`.
 - Replaces `CLAUDE.md` with the generic version: no personal persona, and research rules in an
@@ -45,17 +46,21 @@ template-only files are removed afterwards by a workflow.
 derived repo:
 
 1. Refuses to run on a dirty tree.
-2. Adds the `template` remote if needed and fetches the branch (default
-   `https://github.com/jp-schneider/devcontainer.git`, `main`).
+2. Adds the `template` remote if needed (default URL `https://github.com/jp-schneider/devcontainer.git`)
+   and fetches the ref: the first argument (tag or branch). By default it picks the **latest
+   `vX.Y.Z` tag**, falling back to `main` if there are none. It prints the version change from
+   `.devcontainer/VERSION`.
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update).
 4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
-   .devcontainer/compose.project.yml`):
+   .devcontainer/compose.project.yml SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE`):
    - if the derived repo has it, removes files the template *added* under it and restores the
      repo's version (this also resolves conflicts there);
    - otherwise removes the template's copy.
 
    Only tracked files are touched, so ignored files like `.claude/settings.local.json` survive.
+   `.devcontainer/VERSION` always takes the template's value (it would otherwise conflict on the
+   first, unrelated merge).
 5. Leaves the merge staged and lists remaining conflicts. The user reviews and commits.
 
 **Why not re-run the cleanup after a merge?** An earlier design did that ("self-healing"). It

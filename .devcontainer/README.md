@@ -7,8 +7,7 @@ no Docker socket by default.
 **Customizing** (extensions, packages, other software, mounts, services, env vars, FAQ, best
 practices): see [CUSTOMIZING.md](CUSTOMIZING.md).
 
-> **Security disclaimer:** best-effort hardening, not a guarantee. Known gaps include no egress
-> filtering and no protection for code you run on the host yourself. Review what the agent changed
+> **Security disclaimer:** best-effort hardening, not a guarantee; see [Known limitations](#known-limitations). Review what the agent changed
 > before running it on your host. Provided "as is", without warranty. Report security problems
 > privately via the template repository's "Report a vulnerability"
 > ([jp-schneider/devcontainer](https://github.com/jp-schneider/devcontainer)).
@@ -111,6 +110,51 @@ overlay) to give the agent read-only Docker access (`ps`, `logs`, `inspect`; no 
 It's off by default because `docker inspect` exposes the environment variables of **every**
 container on the host. Never mount `/var/run/docker.sock` directly instead.
 
+## Known limitations
+
+This setup reduces risk; it doesn't remove it. Known gaps, roughly by importance:
+
+1. **Code you run on the host is not protected.** Anything you deliberately run from this repo
+   outside the container may have been written or changed by the agent: `make`, `npm`/`uv run`,
+   `pytest`, `pre-commit`, build backends, `.envrc` (direnv asks again after a change), IDE run
+   configurations. Review the diff first, or run it in the container.
+2. **No egress filtering.** The container has unrestricted outbound network access. Workspace
+   contents and `container.env` can be sent anywhere.
+3. **Container isolation is the boundary.** The container shares the host kernel, and the
+   devcontainer tooling and VS Code have their own attack surface. A kernel or runtime
+   vulnerability is outside what this template can address.
+4. **Host details are visible.** `/proc/self/mountinfo` shows host paths, your user name and which
+   files are masked. This setup protects integrity and secret *files*, not the shape of your
+   machine. Don't encode secrets in paths.
+5. **Protection is a snapshot taken at start.**
+   - Secret files created during a session aren't masked until the next start.
+   - A git repo the agent plants during a session is only caught at the next start. Until then,
+     host tools that enter it run its config: VS Code opened on the host (not attached), or a
+     git-aware shell prompt. `.vscode/settings.json` turns off VS Code's automatic repository
+     detection, but that doesn't cover prompts or other IDEs. Avoid host-side git in the
+     workspace between an agent session and the next start.
+6. **Your additions are outside the protections.**
+   - **Extra mounts:** masking and the nested-repo check don't apply to them.
+   - **Dev Container Features:** they run as root at build time and can enable `privileged`
+     mode, capabilities or mounts.
+   - **The Docker proxy overlay:** it exposes all host containers via `docker inspect`.
+
+   See [CUSTOMIZING.md](CUSTOMIZING.md).
+7. **Claude deny rules are a second line of defence.** They govern Claude's file tools; a shell
+   command like `cat .env` on the host is not reliably covered.
+8. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
+   build time; only the Docker proxy image is pinned by digest.
+9. **Details:**
+   - Single-file read-only mounts keep showing the old version if the host replaces the file
+     (git and Claude write by rename) until the container restarts.
+   - The VS Code IPC socket cleanup loop runs for the first 5 minutes; later sockets rely on the
+     cleared environment variables.
+   - `DEVCONTAINER_EDITABLE_BY_AGENT=1` removes the protection of `.devcontainer/` (template
+     development only).
+
+Found another gap, or know how to close one of these? Please contribute; see the
+[template repository](https://github.com/jp-schneider/devcontainer).
+
 ## Hosts
 
 | Host | Notes |
@@ -175,13 +219,17 @@ persists in the volume `claude-code-<worktree>-config`.
 
 ## Updating from the template
 
-Repos created with "Use this template" have no shared git history with the template. To pull
-template updates:
+Repos created with "Use this template" have no shared git history with the template. Your
+template version is in `.devcontainer/VERSION`; releases and their changes are listed at
+https://github.com/jp-schneider/devcontainer/releases. To update:
 
 ```bash
-bash .devcontainer/update-from-template.sh   # optional: <template-url> <branch>
+bash .devcontainer/update-from-template.sh           # latest release (vX.Y.Z tag)
+bash .devcontainer/update-from-template.sh v0.2.0    # a specific release (or a branch name)
 ```
 
+The script prints the version change (e.g. `0.1.0 -> 0.2.0`). `.devcontainer/VERSION` always
+takes the template's value.
 - **Merge behaviour:** it merges `template/main` without committing, keeps this repo's own
   `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files.
 - **First run:** expect conflicts in every template file you have changed, or that the template

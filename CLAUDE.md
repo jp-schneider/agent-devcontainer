@@ -3,17 +3,9 @@
 ## Working Guidelines
 
 ### Collaboration
-- The user is an expert. Write at that level:
-  skip the basics, be precise, use proper terminology and notation (LaTeX in markdown).
-- This is a collaboration. The user should always know what I'm doing and why.
-  - Before multi-step work: state the goal, the approach, and which files I'll touch.
-  - While working: short progress notes at meaningful points.
-  - At the end: what changed, what is verified (and how), what is not verified, open questions.
-- The user sometimes writes faster than they finish sentences. If a request is ambiguous or seems
-  incomplete, ask before acting. Put all questions in one message. For small ambiguities that are
-  cheap to undo, I may go ahead, but I must state the assumption explicitly
-  ("Assumption: …") so the user can correct it.
-- Disagree when I have a reason to. If an approach seems flawed, say so and explain why.
+Personal collaboration preferences live in `CLAUDE.local.md` (gitignored, not part of the public repo):
+
+@CLAUDE.local.md
 
 ### Scientific rigor
 - Keep hypotheses, observations and verified facts separate. Label them ("Hypothesis:",

@@ -142,34 +142,8 @@ encode secrets in paths or directory names.
 
 ## Known limitations
 
-These are **not** covered by the current setup.
-
-1. **Anything you deliberately run on the host from this repo** is untrusted code the agent may
-   have written: `make`, `npm`/`uv run`, `pytest`, `pre-commit`, build backends, `.envrc` (direnv
-   asks for re-approval after a change), JetBrains run configurations, and so on. Review the
-   diff first, or run them in the container.
-2. **Protection is a snapshot at start.**
-   - Secret files created during a session aren't masked until the next start. The agent created
-     those itself.
-   - Worktrees nested inside the workspace are treated as planted repos.
-   - **A repo planted during a session** is only caught at the next start. Until then, host tools
-     that enter it run its config: host VS Code with the folder opened locally (not attached), or a
-     host shell with a git-aware prompt. VS Code attached to the container runs git inside the
-     container and is not affected. Avoid host-side git use in the workspace between an agent
-     session and the next start.
-     *Mitigation:* the template ships `.vscode/settings.json` with
-     `"git.autoRepositoryDetection": false` (read-only for the agent), so host VS Code doesn't
-     auto-open repos it finds in subfolders. This doesn't cover git-aware shell prompts, other
-     IDEs, or user settings that override it. A side effect is that VS Code doesn't auto-detect
-     nested repos inside the container either; use "Git: Open Repository" when needed.
-3. **Single-file mounts pin the inode.** If the host replaces `.git/config` or a settings file
-   (git and Claude Code write by rename), the container keeps seeing the old version until restart.
-4. **No egress restriction.** The container has unrestricted outbound network access, so
-   workspace data and `container.env` can be exfiltrated. Accepted for now.
-5. **The IPC socket cleanup is time-bounded.** The `command` loop runs 10 × 30 s. Sockets that VS
-   Code creates later rely on `security-harden.sh` having cleared the variables that point to them.
-6. **Image supply chain.** The base images and the uv/Claude installers are fetched at build time
-   (tags, `curl | sh`). Only the proxy image is pinned by digest.
+The list lives in [.devcontainer/README.md](../.devcontainer/README.md#known-limitations), so derived
+repos keep it (this folder is removed by the cleanup). Update it there.
 
 ## Maintaining
 

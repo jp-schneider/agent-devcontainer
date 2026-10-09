@@ -16,8 +16,9 @@ fi
 name="${1:-$(basename "$(git rev-parse --show-toplevel)")}"
 files="$here/files"
 
-# Template-only docs and development history. Other .claude/ files (e.g. settings.json) are kept.
-rm -rf docs
+# Template-only docs, policies (security, contributing, changelog, issue forms) and development
+# history. Other .claude/ files (e.g. settings.json) are kept.
+rm -rf docs SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE
 rm -rf .claude/plans .claude/scratchpad .claude/knowledge .claude/memory
 mkdir -p .claude/memory
 cp "$files/overview.md" .claude/overview.md
