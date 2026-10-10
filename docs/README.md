@@ -48,6 +48,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── workflows/template-cleanup.yml
 └── template-cleanup/            cleanup.sh + files/ (generic CLAUDE.md, skeletons, jokes)
 docs/                            this folder (template only)
+tests/                           bats suites + run.sh (template only; CI: .github/workflows/tests.yml)
 SECURITY.md, CONTRIBUTING.md, CHANGELOG.md   template only (removed by cleanup, never merged into derived repos)
 CLAUDE.md, .claude/              template development history (template only)
 ```

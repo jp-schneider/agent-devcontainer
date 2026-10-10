@@ -4,28 +4,47 @@ Inside the devcontainer, `docker build`/`run` are blocked by design, and the com
 installed. So verification is split between offline checks (runnable inside the container) and
 host checks.
 
-## Offline checks
+## Automated tests (`tests/`, bats)
 
-Reference implementations live in the template repo's `.claude/scratchpad/` (not shipped). Each
-has a README with the exact command.
+Run everything, or one suite:
 
-| Check | What it proves | Scratchpad entry |
-|---|---|---|
-| Compose merge equivalence | A refactor of compose files keeps the merged config (approximates compose's merge in Python, `uv run --with pyyaml`) | `*-compose-split-check`, `*-toolchain-split-check` |
-| apt package set | Moving packages between Dockerfile and `apt-packages.txt` keeps the set | `*-toolchain-split-check` |
-| Host override | `host-override.sh` output for WSL and generic hosts (`PROC_VERSION` test hook) | `*-host-override-check` |
-| Template flow | cleanup + two template updates on throwaway repos (`test.sh`, 21 checks) | `*-template-flow-check` |
-| initialize.sh integration | full `initialize.sh` on a repo copy with fake `docker`: merged apt lists (project + variant, pins, comments), generated files, planted-repo abort (10 checks) | `*-initialize-integration-check` |
-| Resolved config | `resolve-config.sh`: compose list extracted from each variant, order, failure handling (fake `docker`, 8 checks) | `*-resolve-config-check` |
-| Path protection | `protect-paths.sh`: generated read-only binds (main worktree, linked worktree, submodule), planted-repo aborts, allowlist, mask patterns (defaults, project file, allow lines), awkward paths, host-only switch, allowlisted nested repos and pointer files (`test.sh`, 42 checks) | `*-protect-paths-check` |
+```bash
+tests/run.sh
+tests/run.sh tests/protect-paths.bats
+BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash (macOS: 3.2)
+```
 
-Tests that create git repos must use a work dir **outside the workspace** (`"$(mktemp -d)/work"`).
-Otherwise `protect-paths.sh` finds them as planted repos and aborts the next container start.
+- **bats-core is a pinned dev dependency:** `tests/run.sh` uses `bats` from `PATH`, otherwise it
+  downloads the version pinned in the script into `~/.cache`, outside the workspace, and checks
+  the commit SHA.
+- **Also needed:** `git`, `jq`, Python 3 with PyYAML. `uv run --with pyyaml` is used if
+  PyYAML isn't installed.
+- **CI** (`.github/workflows/tests.yml`) runs on every push to `main` and on pull requests:
+  - Ubuntu: `shellcheck --severity=warning` on all shell scripts, then all suites;
+  - macOS: all suites with `/bin/bash` 3.2 as the bash under test, which checks the
+    compatibility the host scripts promise.
 
-Every check should have a **negative control**: a deliberately wrong input that must make it
-fail. Otherwise a passing check proves nothing.
+| Suite | Covers |
+|---|---|
+| `protect-paths.bats` | read-only binds (main worktree, linked worktree, submodules, allowlisted repos and pointers), planted-repo aborts, secret masks (defaults, project file, `!` exceptions), awkward paths, `DEVCONTAINER_EDITABLE_BY_AGENT` |
+| `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, compose order |
+| `resolve-config.bats` | compose file list per variant, failure handling |
+| `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
+| `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup |
+| `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag) |
 
-Also run `bash -n` on all changed shell scripts. `shellcheck` isn't installed in the image.
+**Rules for tests:**
+- **Work dir outside the workspace** (`setup_workdir` in `tests/helpers.bash`). Tests create git
+  repos, which `protect-paths.sh` would treat as planted and abort the next container start on.
+- **A negative control per suite:** a deliberately wrong input that must fail. Otherwise a
+  passing suite proves nothing.
+- **bash 3.2-safe assertions:** no `! cmd` or `[[ … ]]` mid-test, because they don't fail the
+  test. Use `not_grep`, `output_has` and `[ … ]`.
+- **The mutation check** in `.claude/scratchpad/*-bats-mutation-check/` (template repo) breaks the
+  scripts deliberately and confirms the suites notice.
+
+Historical one-off checks, such as the compose-merge equivalence of refactors against older
+commits, remain in `.claude/scratchpad/` (template repo only).
 
 ## Host checks
 

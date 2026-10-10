@@ -13,7 +13,7 @@ template-only files are removed afterwards by a workflow.
 [cleanup.sh](../.github/template-cleanup/cleanup.sh) once and commits the result.
 
 **What it does:**
-- Removes the template-only `docs/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
+- Removes the template-only `docs/`, `tests/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
   `.github/ISSUE_TEMPLATE/` and `.claude/{plans,scratchpad,knowledge,memory}`. Other `.claude/` files,
   e.g. `settings.json`, are kept.
 - Writes fresh `.claude/overview.md` and `.claude/memory/MEMORY.md`.
@@ -53,7 +53,8 @@ derived repo:
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update).
 4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
-   .devcontainer/compose.project.yml SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE`):
+   .devcontainer/compose.project.yml SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests
+   .github/workflows/tests.yml`):
    - if the derived repo has it, removes files the template *added* under it and restores the
      repo's version (this also resolves conflicts there);
    - otherwise removes the template's copy.

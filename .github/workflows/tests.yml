@@ -1,0 +1,58 @@
+name: Tests
+
+# Template tests (tests/*.bats) + shellcheck. Runs only in the template repository: repos created
+# from the template keep this file (a GITHUB_TOKEN push can't delete workflows) but not tests/.
+# Pull requests from forks run in the base repository's context, so they are tested too.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    if: github.repository == 'jp-schneider/devcontainer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          git ls-files -z '*.sh' '*.bash' | xargs -0 shellcheck --severity=warning
+
+      - name: PyYAML for the YAML checks
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pyyaml==6.0.2
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
+      - name: bats
+        run: tests/run.sh
+
+  macos-bash-3-2:
+    # The host-side scripts promise bash 3.2 compatibility (macOS system bash): test them with it
+    if: github.repository == 'jp-schneider/devcontainer'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: PyYAML for the YAML checks
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pyyaml==6.0.2
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
+      - name: bats, scripts under test run with /bin/bash
+        run: |
+          /bin/bash --version | head -n 1
+          /bin/bash -c '[ "${BASH_VERSINFO[0]}" -eq 3 ]'
+          BASH_UNDER_TEST=/bin/bash tests/run.sh

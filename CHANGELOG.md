@@ -10,7 +10,14 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 ## [Unreleased]
 
 ### Added
+- **Automated tests:** bats-core suites in `tests/` (protect-paths, initialize, resolve-config,
+  host-override, variant invariants, template lifecycle), with `tests/run.sh` (bats pinned as a
+  dev dependency). CI runs them on Ubuntu (plus shellcheck) and on macOS with bash 3.2.
 - **Variant `base`:** the core image without a toolchain (no Python), as a generic quickstart.
+
+### Changed
+- `host-override.sh`: new test hook `WSL_LIB_DIR`; behaviour unchanged.
+- The cleanup and `update-from-template.sh` treat `tests/` and the tests workflow as template-only.
 
 ## [0.1.0] - unreleased
 

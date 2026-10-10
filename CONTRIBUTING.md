@@ -34,17 +34,20 @@ Orientation: [docs/README.md](docs/README.md) (layout, design decisions) and
 
 ## Testing
 
-**Offline checks** run inside the container; no Docker is needed.
-- **Where:** the test scripts live in `.claude/scratchpad/*/test.sh`. They'll move to `tests/`
-  with CI.
-- **How:** each has a README with the exact command.
-- **Work dir:** always use one **outside the workspace** (`"$(mktemp -d)/work"`). The tests create
-  git repos, which would abort the next container start.
+**Automated tests** run inside the container; no Docker is needed:
+
+```bash
+tests/run.sh
+```
+
+- **Framework:** bats-core, a pinned dev dependency. `tests/run.sh` fetches it if needed.
+- **CI** runs the same suites on every pull request, on Ubuntu (plus `shellcheck`) and on macOS
+  with bash 3.2.
+- **Details and rules for writing tests:** [docs/testing.md](docs/testing.md#automated-tests-tests-bats).
+- **New behaviour needs a test,** including a negative control.
 
 **Host checks** need a real build and start. Follow the checklist in
 [docs/testing.md](docs/testing.md#host-checks) for the variants and hosts your change affects.
-
-Also run `bash -n` on every changed shell script, plus `shellcheck` if you have it.
 
 ## Invariants: please keep these intact
 
@@ -66,13 +69,13 @@ These are easy to break by accident and matter for security:
 - **Nothing that widens access by default:** no `privileged`, no extra capabilities, no
   credential or Docker-socket mounts. Make it opt-in and document the trade-off.
 - **Template-only vs. kept files:** derived repos keep `.devcontainer/`. The cleanup removes
-  `docs/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and `.github/ISSUE_TEMPLATE/`, and
+  `docs/`, `tests/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and `.github/ISSUE_TEMPLATE/`, and
   `update-from-template.sh` never merges them back. Put user-facing content in `.devcontainer/`.
 
 ## Pull request checklist
 
 - [ ] The change is explained: what it protects against, or why it's safe.
-- [ ] Offline checks pass. Host checks were done for the affected variants/hosts, or are listed
+- [ ] `tests/run.sh` passes (CI too). Host checks were done for the affected variants/hosts, or are listed
       as not done.
 - [ ] Docs updated: `.devcontainer/README.md` (including **Known limitations** if the security
       picture changes), `CUSTOMIZING.md` and `docs/` as needed.
