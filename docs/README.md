@@ -22,6 +22,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── VERSION                      template version of this checkout (kept in derived repos)
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
+├── base/devcontainer.json       no toolchain
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions

@@ -21,8 +21,8 @@ agents with more access than they intend, and because it will get better with mo
 - **Planted nested git repos** abort the container start, because host git would run their hooks.
 - **Secret files are masked:** `.env`, keys, credential files and more, via configurable regex
   patterns. Container variables go in a separate `container.env`.
-- **Variants:** `python-uv-gpu` (CUDA) and `python-uv-cpu`, built from a shared core plus overlays,
-  with pluggable toolchains.
+- **Variants:** `python-uv-gpu` (CUDA), `python-uv-cpu` and `base` (no toolchain), built from a
+  shared core plus overlays, with pluggable toolchains.
 - **Project customization** without touching template files: extra packages, mounts, services.
   Template updates can be merged later.
 

@@ -21,6 +21,7 @@ devcontainer CLI ask which one to use. Delete the variants you don't need.
 |---|---|---|---|
 | `python-uv-gpu` | `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04` | uv (+ ruff, ty) | yes |
 | `python-uv-cpu` | `ubuntu:24.04` | uv (+ ruff, ty) | no |
+| `base` | `ubuntu:24.04` | none (core tools: git, curl, jq, ripgrep, vim, nano, …) | no |
 
 All variants of a worktree share one container name, so switching variants replaces the container.
 

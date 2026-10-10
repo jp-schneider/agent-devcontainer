@@ -1,0 +1,3 @@
+# Variant apt packages, installed at image build on top of .devcontainer/apt-packages.txt (all
+# variants, optional). Whitespace-separated, "#" comments, optional version pins (pkg=version).
+# Read-only to the agent; rebuild after changes.

@@ -1,0 +1,75 @@
+{
+  "name": "Claude Code · base",
+  "dockerComposeFile": [
+    "../shared/compose.core.yml",
+    "../compose.project.yml",
+    "../.generated/compose.host.yml",
+    "../.generated/compose.protect.yml"
+  ],
+  "service": "claude-code",
+  "workspaceFolder": "/app",
+  "remoteUser": "vscode",
+  "shutdownAction": "stopCompose",
+  "remoteEnv": {
+    // First layer of defence – VS Code re-injects some of these, so the
+    // security-harden.sh script sourced from .bashrc is the real safeguard.
+    "SSH_AUTH_SOCK": "",
+    "GPG_AGENT_INFO": "",
+    "BROWSER": "",
+    "VSCODE_IPC_HOOK_CLI": null,
+    "VSCODE_GIT_IPC_HANDLE": null,
+    "GIT_ASKPASS": null,
+    "VSCODE_GIT_ASKPASS_MAIN": null,
+    "VSCODE_GIT_ASKPASS_NODE": null,
+    "VSCODE_GIT_ASKPASS_EXTRA_ARGS": null,
+    "REMOTE_CONTAINERS_IPC": null,
+    "REMOTE_CONTAINERS_SOCKETS": null,
+    "REMOTE_CONTAINERS_DISPLAY_SOCK": null,
+    "WAYLAND_DISPLAY": null
+  },
+  // No toolchain: core image only
+  "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "base"],
+  // postStartCommand: clean up sockets created before VS Code attaches
+  "postStartCommand": "find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
+  // IPC socket cleanup (vscode-ipc-*.sock, vscode-git-*.sock) is handled by a background
+  // loop in the Docker Compose command – postAttachCommand is unreliable for background
+  // processes due to VS Code's cgroup-based lifecycle cleanup.
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "dev.containers.dockerCredentialHelper": false,
+        "dev.containers.copyGitConfig": false,
+        // Container only (not .vscode/settings.json, which the host shares): hide files that are
+        // masked here (empty, read-only; see shared/mask-patterns.txt). Cosmetic; globs approximate
+        // the regexes and cannot exclude container.env from *.env, so *.env is not listed.
+        "files.exclude": {
+          "**/.git": true, "**/.svn": true, "**/.hg": true, "**/CVS": true, "**/.DS_Store": true, "**/Thumbs.db": true,
+          "**/.env": true, "**/.env.*": true,
+          "**/*.pem": true, "**/*.key": true, "**/*.p12": true, "**/*.pfx": true, "**/*.jks": true, "**/*.keystore": true, "**/*.kdbx": true,
+          "**/id_rsa": true, "**/id_dsa": true, "**/id_ecdsa": true, "**/id_ed25519": true,
+          "**/.netrc": true, "**/.npmrc": true, "**/.pypirc": true, "**/.git-credentials": true, "**/.htpasswd": true,
+          "**/.aws/credentials": true, "**/.aws/config": true, "**/.docker/config.json": true,
+          "**/credentials": true, "**/credentials.{json,yaml,yml,toml,ini,txt,cfg,conf}": true,
+          "**/secret{,s}": true, "**/secret{,s}.{json,yaml,yml,toml,ini,txt,cfg,conf}": true,
+          "**/*.tfvars": true, "**/terraform.tfstate{,.backup}": true
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.automationProfile.linux": {
+          "path": "/bin/bash"
+        },
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash"
+          }
+        }
+      },
+      "extensions": [
+        "anthropic.claude-code",
+        "esbenp.prettier-vscode",
+        "mhutchie.git-graph",
+        "augustocdias.tasks-shell-input",
+        "nuriyev.claude-code-katex"
+      ]
+    }
+  }
+}

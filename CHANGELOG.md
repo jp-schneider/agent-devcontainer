@@ -9,6 +9,9 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Added
+- **Variant `base`:** the core image without a toolchain (no Python), as a generic quickstart.
+
 ## [0.1.0] - unreleased
 
 First public version.
