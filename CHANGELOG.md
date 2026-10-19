@@ -18,6 +18,10 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   template into a repo not created from it. It moves the previous devcontainer config to
   `.devcontainer.legacy/`, adds missing files (`compose.project.yml`, `.claude/settings.json`, generic
   `CLAUDE.md` and `.claude/` skeleton) and lists tracked files that are now ignored.
+- **Local models (LM Studio):** `claude-local` (in every image) runs Claude Code against
+  LM Studio's Anthropic-compatible API. There are two opt-in overlays: `compose.lmstudio-host.yml` (server on
+  the host) and `compose.lmstudio-sidecar.yml` (headless llmster container, pinned and
+  checksum-verified, sharing the host's model folder). See CUSTOMIZING.md.
 
 ### Changed
 - `host-override.sh`: new test hook `WSL_LIB_DIR`; behaviour unchanged.

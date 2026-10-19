@@ -1,0 +1,14 @@
+# Overlay: reach an LM Studio server running on the Docker host (llmster or the desktop app), for
+# `claude-local`. Opt-in: add this file to a variant's dockerComposeFile array (before
+# compose.project.yml). Mutually exclusive with compose.lmstudio-sidecar.yml.
+#
+# Host side: `lms server start --port 1234 --bind <docker0 IP, usually 172.17.0.1>`, with
+# "Require Authentication" on; the token goes in container.env as LMSTUDIO_API_TOKEN.
+# Docker Desktop resolves host.docker.internal itself; Docker Engine (native Linux, inside WSL)
+# needs the extra_hosts entry. Another server: DEVCONTAINER_LMSTUDIO_URL in the root .env.
+services:
+  claude-code:
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      LMSTUDIO_BASE_URL: ${DEVCONTAINER_LMSTUDIO_URL:-http://host.docker.internal:1234}

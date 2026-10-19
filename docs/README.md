@@ -43,6 +43,10 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
     ├── resolve-config.sh        docker compose config → .generated/compose.resolved.yml
     ├── devcontainer.md          agent-facing environment notes (imported by CLAUDE.md)
     ├── devcontainer.docker-proxy.md
+    ├── devcontainer.lmstudio.md
+    ├── compose.lmstudio-{host,sidecar}.yml  opt-in: local LM Studio backend for claude-local
+    ├── lmstudio/Dockerfile      llmster sidecar image (pinned, checksum-verified)
+    ├── bin/claude-local         Claude Code against LM Studio (copied into the image)
     └── toolchains/uv/           apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml
 .github/
 ├── workflows/template-cleanup.yml

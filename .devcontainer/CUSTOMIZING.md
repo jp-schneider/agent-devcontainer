@@ -227,6 +227,72 @@ Edit those files on the host, then restart or rebuild if needed.
   repo.
 - **Clones the agent makes** belong in `/tmp`.
 
+### How do I use local models (LM Studio)?
+
+LM Studio (≥ 0.4.1) serves an Anthropic-compatible API, so Claude Code itself talks to it. You get
+the same tools (Read/Edit/Write/Bash), permissions, CLAUDE.md and container protections; only the
+model differs. Uses: working entirely with local models, with no Claude account; keeping code
+on your machine; or switching to a local model now and then. `claude-local [args]` sets this up for one
+process. Plain `claude` and the VS Code extension keep talking to Anthropic.
+
+**1. Pick where LM Studio runs** and add that overlay to the variant's `dockerComposeFile`, before
+`compose.project.yml`. Then rebuild:
+
+```jsonc
+"dockerComposeFile": [
+  "../shared/compose.core.yml",
+  "../shared/toolchains/uv/compose.yml",
+  "../shared/compose.lmstudio-host.yml",   // or compose.lmstudio-sidecar.yml, not both
+  "../compose.project.yml",
+  ...
+```
+
+| | `compose.lmstudio-host.yml` (default) | `compose.lmstudio-sidecar.yml` |
+|---|---|---|
+| Runs | LM Studio app or `llmster` on the host | `llmster` in a container on the dev network |
+| Pick models | GUI, or `lms get` / `lms load` on the host | `docker exec lmstudio-<worktree> lms get …` / `lms load …` |
+| GPU | the host's, outside Docker | NVIDIA container runtime; competes for VRAM with the dev container |
+| Auth | turn on "Require Authentication" | none (no published port) |
+
+**Host mode, server start.** Bind to the Docker bridge, not to all interfaces:
+```bash
+lms server start --port 1234 --bind "$(ip -4 -o addr show docker0 | awk '{print $4}' | cut -d/ -f1)"
+```
+`docker0` must exist (Docker running) before the server starts. On Docker Desktop,
+`host.docker.internal` points at the Desktop host, so which bind is reachable depends on where LM
+Studio runs; check with the `curl` from step 3. A server elsewhere:
+`DEVCONTAINER_LMSTUDIO_URL=http://<host>:1234` in the root `.env`.
+
+**Sidecar mode.** The models folder (default `~/.lmstudio/models`, or
+`DEVCONTAINER_LMSTUDIO_MODELS_DIR` in `.env`) must exist on the host. Rebuild to update llmster:
+version and checksum are pinned in `shared/lmstudio/Dockerfile`. On WSL, if the sidecar doesn't see
+the GPU, mount the WSL driver libraries for it in `compose.project.yml`:
+```yaml
+services:
+  lmstudio:
+    volumes: ["/usr/lib/wsl:/usr/lib/wsl:ro"]
+    environment: {LD_LIBRARY_PATH: /usr/lib/wsl/lib}
+```
+
+**2. `container.env`:**
+```bash
+LMSTUDIO_MODEL=openai/gpt-oss-20b     # the key `lms ls` / /v1/models shows; --model overrides it
+LMSTUDIO_API_TOKEN=...                 # host mode with authentication; visible to the agent
+```
+
+**3. In the container:** `curl -s $LMSTUDIO_BASE_URL/v1/models` should list the model; then `claude-local`.
+
+**What to expect:**
+- **Context:** Claude Code's system prompt plus CLAUDE.md files is large. Load the model with ≥ 64k
+  context (`lms load <model> --context-length 65536`); LM Studio's stated minimum is about 25k.
+- **Quality:** multi-step edits depend on the model's tool calling. Larger, tool-tuned coding models
+  work better.
+- **Not verified, likely unavailable:** WebSearch/WebFetch (Anthropic server-side) and claude.ai connectors.
+  Without prompt caching every turn re-reads the context, which is slow on long sessions. Images
+  need a vision model.
+- History and memory live in the same `~/.claude`. Resuming a session that started on Claude may
+  fail.
+
 ### Which variant should I keep?
 
 - **Delete the variant folders you don't use.** VS Code then stops asking.

@@ -33,6 +33,8 @@ A variant is a list of compose files, merged in order:
 shared/compose.core.yml          always first: hardening, workspace, Claude config, network
 shared/compose.gpu.yml           optional: NVIDIA GPU + CUDA base image
 shared/compose.docker-proxy.yml  optional: read-only Docker API (see below)
+shared/compose.lmstudio-host.yml     optional, one of: local LM Studio on the host (see below)
+shared/compose.lmstudio-sidecar.yml                     or as a sidecar container
 shared/toolchains/<name>/compose.yml   toolchain build arg + volumes
 compose.project.yml                yours: mounts, services, resources (see CUSTOMIZING.md)
 ../.generated/compose.host.yml     generated per host by initialize.sh
@@ -110,6 +112,20 @@ Add `"../shared/compose.docker-proxy.yml"` to a variant's `dockerComposeFile` (b
 overlay) to give the agent read-only Docker access (`ps`, `logs`, `inspect`; no `run`/`exec`/`build`).
 It's off by default because `docker inspect` exposes the environment variables of **every**
 container on the host. Never mount `/var/run/docker.sock` directly instead.
+
+### Optional: local model (LM Studio)
+
+`claude-local` runs Claude Code against local models served by
+[LM Studio](https://lmstudio.ai) (≥ 0.4.1, Anthropic-compatible API). You can use it without a Claude
+account, or next to one. It uses the same tools, permissions and protections; only the model
+differs. Plain `claude` keeps talking to Anthropic. Add **one**
+overlay to the variant's `dockerComposeFile` (before `compose.project.yml`) and rebuild:
+- `compose.lmstudio-host.yml`: LM Studio/llmster runs on the host, reached at
+  `host.docker.internal:1234`.
+- `compose.lmstudio-sidecar.yml`: headless llmster in a GPU container on the dev network, using the host's
+  model folder.
+
+Setup, model choice and caveats: [CUSTOMIZING.md](CUSTOMIZING.md#how-do-i-use-local-models-lm-studio).
 
 ## Known limitations
 

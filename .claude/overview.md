@@ -3,6 +3,7 @@
 ## Devcontainer template
 
 ### Active
+- [Local models via LM Studio](plans/2026-10-19-13-07-lmstudio-fallback.md): opt-in overlays (host llmster default, sidecar container), `claude-local` wrapper pointing Claude Code at LM Studio's Anthropic-compatible API
 - [Adopt the template in an existing repo](plans/2026-10-10-19-36-adopt-template-in-existing-repo.md): `update-from-template.sh --adopt`; moves an old `.devcontainer/` to `.devcontainer.legacy/`, seeds missing files, `.gitignore` union
 - [Tests in the repo (bats) + CI](plans/2026-10-10-19-09-bats-tests-and-ci.md): bats-core suites in tests/, pinned dev dependency, GitHub Actions (Ubuntu + macOS bash 3.2), shellcheck
 - [`base` variant](plans/2026-10-10-18-28-base-variant.md): generic variant, core image without a toolchain (no Python); quickstart. Implemented, awaiting host verification

@@ -9,6 +9,10 @@ None by default: the Docker socket is not mounted and the `docker` CLI is not in
 `compose.docker-proxy.yml` overlay, read-only access is available, see
 `devcontainer.docker-proxy.md`.
 
+## Local model
+None by default. If the variant enables an LM Studio overlay (`LMSTUDIO_BASE_URL` is set), see
+`devcontainer.lmstudio.md`.
+
 ## Read-only paths (by design)
 These are mounted read-only because the host executes or trusts them. Writes fail with
 "Read-only file system" or "Device or resource busy". Don't try to work around this; ask the

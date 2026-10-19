@@ -29,6 +29,21 @@ running an agent risk-free. The sections below say what is covered and what is n
 `docker inspect` every container on the host, including environment variables and therefore any
 secrets passed that way. It is therefore opt-in per variant. The image is pinned by digest.
 
+**LM Studio overlays (opt-in).** `claude-local` runs the same Claude Code client, so every
+protection here applies unchanged. A local model may follow injected instructions more readily, which
+is exactly the case these protections are for. What the overlays add:
+- **Host mode** (`compose.lmstudio-host.yml`): `extra_hosts` adds the *name* `host.docker.internal`.
+  Without egress filtering the host gateway was already reachable by IP, so this adds no capability.
+  It does mean the host LM Studio server is reachable by the agent, which is the point. Bind it
+  to the Docker bridge rather than `0.0.0.0` (LAN) and turn on authentication. The token sits in
+  `container.env`, so the agent can read it: it can use the server, nothing more.
+- **Sidecar mode** (`compose.lmstudio-sidecar.yml`): the `lmstudio` container has the core's
+  hardening (`cap_drop: ALL`, `no-new-privileges`, non-root host UID), no published port and no
+  auth. The agent can call its whole API. If that API can download models (not verified), the agent can
+  write into the bind-mounted host models folder. That folder holds model weights, not code the host executes. The image fetches llmster from `llmster.lmstudio.ai` at a pinned
+  version and checks a pinned SHA-512. It does not run `install.sh`, which picks the CPU-only
+  bundle when no GPU is visible during the build and trusts a checksum served by the same host.
+
 ## Protected paths (host execution)
 
 **The threat:** the workspace (`/app`) and the main repo's `.git` are bind-mounted read-write. Some

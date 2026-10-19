@@ -27,7 +27,7 @@ jobs:
       - name: shellcheck
         run: |
           shellcheck --version
-          git ls-files -z '*.sh' '*.bash' | xargs -0 shellcheck --severity=warning
+          git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning
 
       - name: PyYAML for the YAML checks
         run: |

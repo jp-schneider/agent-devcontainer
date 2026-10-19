@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# claude-local: run Claude Code against local models served by LM Studio instead of the Anthropic API.
+#
+# LM Studio (>= 0.4.1) serves an Anthropic-compatible POST /v1/messages, so Claude Code talks to it
+# directly. The settings below apply to this process only; plain `claude` keeps talking to Anthropic.
+#
+# Env (container): LMSTUDIO_BASE_URL   server root, set by compose.lmstudio-{host,sidecar}.yml
+#                  LMSTUDIO_MODEL      model key as LM Studio lists it (e.g. openai/gpt-oss-20b);
+#                                      `--model <key>` on the command line overrides it
+#                  LMSTUDIO_API_TOKEN  only if "Require Authentication" is on (container.env)
+# Usage: claude-local [claude args]
+set -euo pipefail
+
+if [ -z "${LMSTUDIO_BASE_URL:-}" ]; then
+    echo "claude-local: LMSTUDIO_BASE_URL is not set; add compose.lmstudio-host.yml or" \
+        "compose.lmstudio-sidecar.yml to this variant's dockerComposeFile list and rebuild" >&2
+    exit 2
+fi
+
+model="${LMSTUDIO_MODEL:-}"
+prev=""
+for arg in "$@"; do
+    case "$arg" in
+        --model=*) model="${arg#--model=}" ;;
+        *) [ "$prev" = "--model" ] && model="$arg" ;;
+    esac
+    prev="$arg"
+done
+if [ -z "$model" ]; then
+    echo "claude-local: no model; set LMSTUDIO_MODEL in container.env or pass --model <key>." >&2
+    echo "Models known to the server: curl -s \$LMSTUDIO_BASE_URL/v1/models" >&2
+    exit 2
+fi
+
+export ANTHROPIC_BASE_URL="${LMSTUDIO_BASE_URL%/}"
+export ANTHROPIC_AUTH_TOKEN="${LMSTUDIO_API_TOKEN:-lmstudio}"
+unset ANTHROPIC_API_KEY
+# LM Studio's documented setting for Claude Code
+export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+# No telemetry/update checks against Anthropic while running locally
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+# Every model slot points at the local model: background tasks use the haiku slot and subagents
+# their own, and a claude-* model name would fail against LM Studio
+export ANTHROPIC_MODEL="$model"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
+export CLAUDE_CODE_SUBAGENT_MODEL="$model"
+
+# The native installer puts claude in ~/.local/bin, which only .bashrc adds to PATH
+if command -v claude > /dev/null 2>&1; then
+    exec claude "$@"
+fi
+exec "$HOME/.local/bin/claude" "$@"

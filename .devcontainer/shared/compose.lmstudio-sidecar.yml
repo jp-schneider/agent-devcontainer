@@ -1,0 +1,40 @@
+# Overlay: headless LM Studio (llmster) as a sidecar on the dev network, for `claude-local`.
+# Opt-in: add this file to a variant's dockerComposeFile array (before compose.project.yml).
+# Mutually exclusive with compose.lmstudio-host.yml. Needs the NVIDIA container runtime on the host.
+#
+# No port is published: only containers on the dev network reach it, so it runs without auth.
+# Models live on the host (default ~/.lmstudio/models, shared with a host llmster; override with
+# DEVCONTAINER_LMSTUDIO_MODELS_DIR in the root .env). The directory must exist. Manage models from
+# the host: docker exec lmstudio-<worktree> lms get <model> / lms load <model> --context-length 65536
+services:
+  lmstudio:
+    build:
+      context: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/shared/lmstudio
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    container_name: lmstudio-${WORKTREE_NAME:-project}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - type: bind
+        source: ${DEVCONTAINER_LMSTUDIO_MODELS_DIR:-${HOST_HOME}/.lmstudio/models}
+        target: /home/lmstudio/.lmstudio/models
+        bind:
+          create_host_path: false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - dev
+  claude-code:
+    environment:
+      LMSTUDIO_BASE_URL: http://lmstudio:1234
+    depends_on:
+      - lmstudio

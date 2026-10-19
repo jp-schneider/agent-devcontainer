@@ -122,6 +122,9 @@ RUN mkdir -p /home/vscode/.claude && chown -R vscode:vscode /home/vscode/.claude
 RUN install_sh="/opt/devcontainer/toolchains/${TOOLCHAIN}/install.sh"; \
     if [[ -f "$install_sh" ]]; then bash "$install_sh"; fi
 
+# claude-local: Claude Code against a local LM Studio server (opt-in overlays compose.lmstudio-*.yml)
+COPY --chmod=755 shared/bin/claude-local /usr/local/bin/claude-local
+
 WORKDIR /app
 
 CMD ["sleep", "infinity"]

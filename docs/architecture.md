@@ -36,6 +36,7 @@ A variant is an ordered list of compose files:
 shared/compose.core.yml                 always first
 shared/compose.gpu.yml                  optional
 shared/compose.docker-proxy.yml         optional
+shared/compose.lmstudio-{host,sidecar}.yml  optional, at most one (both set LMSTUDIO_BASE_URL)
 shared/toolchains/<name>/compose.yml    toolchain
 .devcontainer/compose.project.yml       project-owned: mounts, services, resources
 ../.generated/compose.host.yml          generated: host-specific mounts
