@@ -1,7 +1,8 @@
 # devcontainer: a hardened home for coding agents
 
-Coding agents like Claude Code are most useful when they can run commands on their own. This
-GitHub template gives them a development container in which that is **less risky**:
+GitHub template for hardened devcontainers in which coding agents, currently claude code can run more safely.
+It has a shared hardened core plus per-stack variants (currently `python-uv-gpu` and
+`python-uv-cpu`), and works on WSL2, native Linux and macOS.
 
 - **Limited rights:** the agent runs without root, without capabilities and without access to
   your SSH keys or Docker.
