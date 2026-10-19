@@ -237,6 +237,41 @@ takes the template's value.
   has changed since you created the repo. That's because there is no common ancestor yet.
   Later updates merge normally.
 - **Deleted variants:** variants you deleted come back if the template changed them. Delete them again.
+- **`.gitignore` conflicts** are resolved automatically: your lines, plus the template's missing
+  ones under `# devcontainer template`.
+
+## Adding the template to an existing repo
+
+For a repo that was not created from the template. The script isn't in your repo yet, so take it
+from the template remote, read it, then run it with `--adopt` from the repo root (clean tree):
+
+```bash
+git remote add template https://github.com/jp-schneider/devcontainer.git
+git fetch template
+git show template/main:.devcontainer/update-from-template.sh > /tmp/update-from-template.sh
+less /tmp/update-from-template.sh                       # inspect before running
+bash /tmp/update-from-template.sh --adopt               # latest release; or: --adopt v0.2.0
+```
+
+On top of a normal update, `--adopt`:
+- **moves your previous devcontainer config** (everything tracked under `.devcontainer/`, and a root
+  `.devcontainer.json`) to `.devcontainer.legacy/`. VS Code doesn't look there. Port what you need
+  (e.g. into `compose.project.yml` or `apt-packages.txt`, see [CUSTOMIZING.md](CUSTOMIZING.md)),
+  then delete it;
+- **adds missing files** from the template, never overwriting yours: `.devcontainer/compose.project.yml`
+  (every variant needs it), `.claude/settings.json` (deny rules), and a generic `CLAUDE.md`,
+  `.claude/overview.md`, `.claude/memory/MEMORY.md`. Files your `.gitignore` ignores are skipped;
+- **lists tracked files that are now ignored** (e.g. a committed `*.env`). Check them for secrets
+  and untrack them with `git rm --cached`;
+- refuses to run if the repo already has the template (`.devcontainer/VERSION`) or
+  `.devcontainer.legacy/` exists.
+
+`.vscode/settings.json` usually conflicts; keep your settings and add
+`"git.autoRepositoryDetection": false`. Your own `README.md` and `.claude/` are kept, as on updates.
+
+This is a real merge, so the template's commits become part of your history (`git log --first-parent`
+hides them). In return, later updates have a common ancestor and merge normally, with the plain
+`bash .devcontainer/update-from-template.sh`.
 
 ## First-time setup of repos created from the template
 

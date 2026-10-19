@@ -1,22 +1,46 @@
 #!/usr/bin/env bash
-# Merges updates from the devcontainer template into a repo created from it.
-# Keeps this repo's own files (see own_paths) and drops template-only ones (docs, policies,
-# cleanup). Leaves the merge uncommitted for review.
+# Merges updates from the devcontainer template into a repo created from it, or (--adopt) into an
+# existing repo that was not. Keeps this repo's own files (see own_paths) and drops template-only
+# ones (docs, policies, cleanup). Leaves the merge uncommitted for review.
 # Run from the repo root on a clean working tree. Bash 3.2 compatible (macOS).
 #
-# Usage: .devcontainer/update-from-template.sh [<ref>] [<template-url>]
-#   <ref>: a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
+# Usage: .devcontainer/update-from-template.sh [--adopt] [<ref>] [<template-url>]
+#   <ref>:   a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
+#   --adopt: first merge into a repo not created from the template. Moves its existing
+#            .devcontainer/ (and .devcontainer.json) to .devcontainer.legacy/ and seeds missing
+#            files (compose.project.yml, .claude/settings.json, CLAUDE.md, .claude/ skeleton).
 set -euo pipefail
 
+adopt=""
+if [ "${1:-}" = "--adopt" ]; then
+    adopt=1
+    shift
+fi
 ref="${1:-}"
 url="${2:-https://github.com/jp-schneider/devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
 own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml
-SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .github/workflows/tests.yml"
+SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .github/workflows/tests.yml
+.github/workflows/template-cleanup.yml"
+legacy=".devcontainer.legacy"
 
 if [ -n "$(git status --porcelain)" ]; then
     echo "update-from-template: working tree not clean, commit or stash first" >&2
     exit 1
+fi
+if [ -n "$adopt" ]; then
+    if ! git rev-parse -q --verify HEAD > /dev/null; then
+        echo "update-from-template: --adopt needs at least one commit" >&2
+        exit 1
+    fi
+    if git cat-file -e HEAD:.devcontainer/VERSION 2> /dev/null; then
+        echo "update-from-template: this repo already has the template (.devcontainer/VERSION); run without --adopt" >&2
+        exit 1
+    fi
+    if [ -e "$legacy" ]; then
+        echo "update-from-template: $legacy already exists; move it away first" >&2
+        exit 1
+    fi
 fi
 
 git remote get-url template > /dev/null 2>&1 || git remote add template "$url"
@@ -36,10 +60,21 @@ echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: ht
 unrelated=""
 if ! git merge-base HEAD "$target" > /dev/null; then
     unrelated="--allow-unrelated-histories"
+elif [ -n "$adopt" ]; then
+    echo "update-from-template: this repo already shares history with the template; run without --adopt" >&2
+    exit 1
 fi
 
-# Conflicts are expected; own paths are resolved below, the rest is up to the user
-git merge --no-commit --no-ff $unrelated -m "Update devcontainer template to $new_version ($ref)" "$target" || true
+# Conflicts are expected; own paths are resolved below, the rest is up to the user.
+# A merge that didn't start (e.g. untracked files in the way) leaves no MERGE_HEAD: stop there.
+msg="Update devcontainer template to $new_version ($ref)"
+[ -z "$adopt" ] || msg="Adopt devcontainer template $new_version ($ref)"
+if ! git merge --no-commit --no-ff $unrelated -m "$msg" "$target"; then
+    if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+        echo "update-from-template: merge did not start, see git's message above" >&2
+        exit 1
+    fi
+fi
 
 # Only tracked files are touched; untracked/ignored ones (e.g. .claude/settings.local.json) stay
 for p in $own_paths; do
@@ -62,7 +97,89 @@ for p in .devcontainer/VERSION; do
     fi
 done
 
+moved=""
+seeded=""
+if [ -n "$adopt" ]; then
+    # The repo's previous devcontainer config moves aside (blobs and modes as in HEAD), so
+    # .devcontainer/ is the template's. A root .devcontainer.json would also show up in VS Code.
+    # Paths under .devcontainer.legacy/ are not scanned by VS Code.
+    while IFS="$(printf '\t')" read -r meta p; do
+        [ -n "$p" ] || continue
+        mode="${meta%% *}"
+        sha="${meta##* }"
+        dest="$legacy/${p#.devcontainer/}"
+        git update-index --add --cacheinfo "$mode,$sha,$dest"
+        git checkout-index -f -- "$dest"
+        if git cat-file -e "$target:$p" 2> /dev/null; then
+            git checkout "$target" -- "$p"
+        else
+            git rm -q -f -- "$p"
+        fi
+        moved="$moved  $p -> $dest
+"
+    done << EOF
+$(git ls-tree -r HEAD -- .devcontainer .devcontainer.json)
+EOF
+fi
+
+# .gitignore is a line list: on a conflict keep ours and append the template's missing lines.
+# Needed on the first merge, where both sides added it (add/add).
+if [ -n "$(git ls-files -u -- .gitignore)" ]; then
+    tmp="$(mktemp)"
+    git show :2:.gitignore > "$tmp.ours" 2> /dev/null || : > "$tmp.ours"
+    git show :3:.gitignore > "$tmp.theirs" 2> /dev/null || : > "$tmp.theirs"
+    awk 'NR == FNR { seen[$0] = 1; print; next }
+        $0 != "" && !($0 in seen) { seen[$0] = 1; add[++n] = $0 }
+        END { if (n) { print ""; print "# devcontainer template"; for (i = 1; i <= n; i++) print add[i] } }' \
+        "$tmp.ours" "$tmp.theirs" > "$tmp"
+    cat "$tmp" > .gitignore
+    rm -f "$tmp" "$tmp.ours" "$tmp.theirs"
+    git add -- .gitignore
+fi
+
+if [ -n "$adopt" ]; then
+    # Seed what the template's "Use this template" + cleanup would have provided: only where
+    # missing (tracked or on disk) and not ignored by this repo
+    while read -r dest src; do
+        [ -n "$dest" ] || continue
+        if git ls-files --error-unmatch -- "$dest" > /dev/null 2>&1 || [ -e "$dest" ]; then
+            continue
+        fi
+        git cat-file -e "$target:$src" 2> /dev/null || continue
+        git check-ignore -q -- "$dest" && continue
+        git update-index --add --cacheinfo "100644,$(git rev-parse "$target:$src"),$dest"
+        git checkout-index -f -- "$dest"
+        seeded="$seeded  $dest
+"
+    done << EOF
+.devcontainer/compose.project.yml .devcontainer/compose.project.yml
+.claude/settings.json .claude/settings.json
+CLAUDE.md .github/template-cleanup/files/CLAUDE.md
+.claude/overview.md .github/template-cleanup/files/overview.md
+.claude/memory/MEMORY.md .github/template-cleanup/files/MEMORY.md
+EOF
+fi
+
+if [ -n "$moved" ]; then
+    printf 'update-from-template: moved the previous devcontainer config (port what you need, then delete %s/):\n%s' "$legacy" "$moved"
+fi
+if [ -n "$seeded" ]; then
+    printf 'update-from-template: added from the template:\n%s' "$seeded"
+fi
+if [ -n "$adopt" ]; then
+    now_ignored="$(git ls-files -ci --exclude-standard)"
+    if [ -n "$now_ignored" ]; then
+        echo "update-from-template: tracked but now ignored (check for secrets; untrack with 'git rm --cached'):"
+        echo "$now_ignored" | sed 's/^/  /'
+    fi
+fi
+
 conflicts="$(git diff --name-only --diff-filter=U)"
+case "$conflicts" in
+    *.vscode/settings.json*)
+        echo "update-from-template: in .vscode/settings.json keep \"git.autoRepositoryDetection\": false (see .devcontainer/README.md)"
+        ;;
+esac
 if [ -n "$conflicts" ]; then
     echo "update-from-template: resolve these conflicts, then 'git commit':"
     echo "$conflicts"

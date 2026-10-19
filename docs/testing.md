@@ -32,6 +32,7 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
 | `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup |
 | `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag) |
+| `adopt.bats` | `--adopt` in a foreign repo: legacy move (content, mode), seeding, `.gitignore` union, remaining conflicts, warnings, then a regular update; refusals |
 
 **Rules for tests:**
 - **Work dir outside the workspace** (`setup_workdir` in `tests/helpers.bash`). Tests create git

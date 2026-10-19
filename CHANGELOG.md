@@ -14,10 +14,16 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   host-override, variant invariants, template lifecycle), with `tests/run.sh` (bats pinned as a
   dev dependency). CI runs them on Ubuntu (plus shellcheck) and on macOS with bash 3.2.
 - **Variant `base`:** the core image without a toolchain (no Python), as a generic quickstart.
+- **Adopting the template in an existing repo:** `update-from-template.sh --adopt` merges the
+  template into a repo not created from it. It moves the previous devcontainer config to
+  `.devcontainer.legacy/`, adds missing files (`compose.project.yml`, `.claude/settings.json`, generic
+  `CLAUDE.md` and `.claude/` skeleton) and lists tracked files that are now ignored.
 
 ### Changed
 - `host-override.sh`: new test hook `WSL_LIB_DIR`; behaviour unchanged.
 - The cleanup and `update-from-template.sh` treat `tests/` and the tests workflow as template-only.
+- `update-from-template.sh`: a `.gitignore` conflict is resolved as ours plus the template's
+  missing lines; stops if `git merge` didn't start; never merges in the template-cleanup workflow.
 
 ## [0.1.0] - unreleased
 
