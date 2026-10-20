@@ -10,6 +10,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 ## [Unreleased]
 
 ### Added
+- **`.gitignore` ignores Python venvs:** a plain `.venv` and the uv toolchain's
+  `.venv-<worktree>.ct` links, at any depth (`tests/gitignore.bats`).
 - **Automated tests:** bats-core suites in `tests/` (protect-paths, initialize, resolve-config,
   host-override, variant invariants, template lifecycle), with `tests/run.sh` (bats pinned as a
   dev dependency). CI runs them on Ubuntu (plus shellcheck) and on macOS with bash 3.2.

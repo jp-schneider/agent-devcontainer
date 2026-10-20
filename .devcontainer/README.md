@@ -225,7 +225,8 @@ For conda, use Miniforge (conda-forge), not the Anaconda `defaults` channel, whi
 
 - **Venvs:** they live in a per-worktree volume. `post-start.sh` symlinks
   `<project>/.venv-<worktree>.ct` into it for every `pyproject.toml` under `/app`, and
-  `UV_PROJECT_ENVIRONMENT` points uv at that link.
+  `UV_PROJECT_ENVIRONMENT` points uv at that link. `.gitignore` ignores these links and a plain
+  `.venv`; the patterns have no trailing slash, because git treats a symlink as a file.
 - **uv's Python installs:** they're shared across all projects in the external volume
   `claude-code-uv-python-versions`, which `init-host.sh` creates.
 

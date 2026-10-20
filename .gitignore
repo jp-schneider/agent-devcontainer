@@ -4,3 +4,7 @@
 .claude/scratchpad/*/outputs/
 .devcontainer/.generated/
 CLAUDE.local.md
+# Python venvs: a host-side .venv, and the uv toolchain's per-worktree links (symlinks, hence no
+# trailing slash: git treats a symlink as a file, so ".venv-*.ct/" would not match)
+.venv
+.venv-*.ct
