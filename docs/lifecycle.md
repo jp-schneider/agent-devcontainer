@@ -28,8 +28,13 @@ template-only files are removed afterwards by a workflow.
 **Triggers and guards:**
 - `push`, `create`, `workflow_dispatch`. Which events fire on template creation isn't documented,
   so the workflow listens to all of them.
-- `if: github.repository != 'jp-schneider/devcontainer' && github.ref_type == 'branch'`.
-  **Update this if the template repo is renamed.**
+- `if: github.repository != 'jp-schneider/agent-devcontainer' && github.event.repository.is_template != true && github.ref_type == 'branch'`.
+  The `is_template` check keeps the cleanup out of the template repo even if the name check is
+  stale (*belief, unverified on GitHub:* every triggering event's payload carries the flag; if
+  it doesn't, the name check still applies).
+- **Renaming the template repo:** update the name in all workflow guards, rename on GitHub
+  **first**, then push. Pushed before the rename, the new name doesn't match the old one, and the
+  cleanup would run in the template repo (unless the `is_template` guard catches it).
 - The job exits early if the marker directory is gone. Together with a `concurrency` group
   (no cancellation) and checking out the branch tip (`ref: github.ref`, not the triggering SHA),
   a second queued run is a no-op.
@@ -48,7 +53,7 @@ template-only files are removed afterwards by a workflow.
 derived repo:
 
 1. Refuses to run on a dirty tree.
-2. Adds the `template` remote if needed (default URL `https://github.com/jp-schneider/devcontainer.git`)
+2. Adds the `template` remote if needed (default URL `https://github.com/jp-schneider/agent-devcontainer.git`)
    and fetches the ref: the first argument (tag or branch). By default it picks the **latest
    `vX.Y.Z` tag**, falling back to `main` if there are none. It prints the version change from
    `.devcontainer/VERSION`.

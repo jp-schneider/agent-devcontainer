@@ -1,7 +1,7 @@
 # Customizing the devcontainer
 
-How to adapt the container to your project without weakening its protections. Overview of the
-setup: [README.md](README.md).
+How to adapt the container to your project without weakening its protections. Getting started:
+[README.md](README.md); how it works: [REFERENCE.md](REFERENCE.md).
 
 ## Ground rules
 
@@ -170,7 +170,7 @@ services:
 ### How do I add Python dependencies?
 
 Use uv as usual (`uv add …`, `uv sync`). Each project's venv lives in a persistent volume and
-survives rebuilds; the link is `.venv-<worktree>.ct`, see [README.md](README.md#uv-details). Don't
+survives rebuilds; the link is `.venv-<worktree>.ct`, see [REFERENCE.md](REFERENCE.md#uv-details). Don't
 create `.venv` by hand.
 
 ### How do I use Node (npm, pnpm)?
@@ -195,7 +195,7 @@ Add the `node` toolchain to your variant. It works alone or next to uv. In the v
 Then rebuild. Pin the Node version with `.nvmrc` or `.node-version` and the package manager with
 `"packageManager": "pnpm@<version>"` in `package.json`. `node_modules` of every package directory
 lives in its own volume. **After adding a package directory, rebuild** to give it one. Details:
-[README.md](README.md#node-details).
+[REFERENCE.md](REFERENCE.md#node-details).
 
 ### How do I use the GPU or give the container more resources?
 

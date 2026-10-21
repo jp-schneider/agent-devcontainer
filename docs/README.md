@@ -18,6 +18,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 .devcontainer/
 ├── README.md                    user guide (kept in derived repos)
 ├── CUSTOMIZING.md               FAQ + best practices for template users (kept in derived repos)
+├── REFERENCE.md                 how it works: composition, protections, toolchains (kept in derived repos)
 ├── claude-md/                   optional CLAUDE.md snippets to copy (research, personal preferences)
 ├── update-from-template.sh      merge template updates into a derived repo (default: latest release tag)
 ├── VERSION                      template version of this checkout (kept in derived repos)

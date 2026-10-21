@@ -12,7 +12,7 @@ minor versions when that's needed to close a gap.
 ## Reporting a vulnerability
 
 **Please don't open a public issue.** Report privately via
-[GitHub's private vulnerability reporting](https://github.com/jp-schneider/devcontainer/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/jp-schneider/agent-devcontainer/security/advisories/new)
 (Security tab → "Report a vulnerability").
 
 Helpful to include:

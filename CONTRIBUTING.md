@@ -80,7 +80,7 @@ These are easy to break by accident and matter for security:
 - [ ] `tests/run.sh` passes (CI too). Host checks were done for the affected variants/hosts, or are listed
       as not done.
 - [ ] Docs updated: `.devcontainer/README.md` (including **Known limitations** if the security
-      picture changes), `CUSTOMIZING.md` and `docs/` as needed.
+      picture changes), `CUSTOMIZING.md`, `REFERENCE.md` and `docs/` as needed.
 - [ ] `CHANGELOG.md`: an entry under **[Unreleased]**.
 
 ## Releases (maintainer)

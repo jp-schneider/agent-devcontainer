@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   linux:
-    if: github.repository == 'jp-schneider/devcontainer'
+    if: github.repository == 'jp-schneider/agent-devcontainer'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -43,7 +43,7 @@ jobs:
 
   macos-bash-3-2:
     # The host-side scripts promise bash 3.2 compatibility (macOS system bash): test them with it
-    if: github.repository == 'jp-schneider/devcontainer'
+    if: github.repository == 'jp-schneider/agent-devcontainer'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0

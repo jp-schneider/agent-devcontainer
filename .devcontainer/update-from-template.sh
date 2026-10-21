@@ -17,7 +17,7 @@ if [ "${1:-}" = "--adopt" ]; then
     shift
 fi
 ref="${1:-}"
-url="${2:-https://github.com/jp-schneider/devcontainer.git}"
+url="${2:-https://github.com/jp-schneider/agent-devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
 own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml
 LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
@@ -54,7 +54,7 @@ target="$(git rev-parse 'FETCH_HEAD^{commit}')"
 
 old_version="$(cat .devcontainer/VERSION 2> /dev/null || echo unknown)"
 new_version="$(git show "$target:.devcontainer/VERSION" 2> /dev/null || echo unknown)"
-echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: https://github.com/jp-schneider/devcontainer/releases"
+echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: https://github.com/jp-schneider/agent-devcontainer/releases"
 
 # The first update has no common history ("Use this template" squashes it)
 unrelated=""

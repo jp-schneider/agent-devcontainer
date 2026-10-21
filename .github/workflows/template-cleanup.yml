@@ -21,7 +21,12 @@ concurrency:
 
 jobs:
   cleanup:
-    if: github.repository != 'jp-schneider/devcontainer' && github.ref_type == 'branch'
+    # Two guards against running in the template itself: its name, and (independent of renames)
+    # the "Template repository" flag. A payload without the flag falls back to the name check.
+    if: >-
+      github.repository != 'jp-schneider/agent-devcontainer'
+      && github.event.repository.is_template != true
+      && github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0

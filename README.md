@@ -1,4 +1,4 @@
-# devcontainer: a hardened home for coding agents
+# agent-devcontainer: a hardened home for coding agents
 
 GitHub template for hardened devcontainers in which coding agents (currently Claude Code, also
 with local models via LM Studio) can run more safely. It has a shared hardened core plus variants
@@ -35,8 +35,11 @@ agents with more access than they intend, and because it will get better with mo
 2. Clone it and open it in VS Code with the
    [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
    extension, then choose **"Reopen in Container"** and pick a variant.
-3. Read [.devcontainer/README.md](.devcontainer/README.md) (how it works) and
+3. Read [.devcontainer/README.md](.devcontainer/README.md) (getting started, everyday use) and
    [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) (extensions, packages, mounts, FAQ).
+
+**Existing repository?** Follow
+[Getting started → B. Existing repository](.devcontainer/README.md#b-existing-repository) instead.
 
 **Requirements:**
 - Docker with Compose v2.
@@ -64,6 +67,13 @@ thought of.
   anything you couldn't afford to lose.
 - **As is:** the software comes without warranty of any kind.
 
+## Related projects
+
+[**agent-sandbox**](https://github.com/mattolson/agent-sandbox) also runs coding agents in a local
+container. It is CLI-first and filters network egress through a proxy, which this template
+doesn't yet. This template is VS Code-first: it hardens the devcontainer and its IDE channel itself
+(VS Code IPC, credential helpers, read-only host-executed files).
+
 ## Contributing: help especially welcome on security
 
 This is meant to be an ongoing community effort, and **contributions are highly appreciated**,
@@ -82,7 +92,7 @@ Open an issue to discuss an idea, or send a pull request. [CONTRIBUTING.md](CONT
 the setup, the tests and the invariants to keep.
 
 **Found a vulnerability?** Please report it **privately** via GitHub's
-[Report a vulnerability](https://github.com/jp-schneider/devcontainer/security/advisories/new)
+[Report a vulnerability](https://github.com/jp-schneider/agent-devcontainer/security/advisories/new)
 (Security tab) instead of opening a public issue, so it can be fixed before it's widely known.
 Details: [SECURITY.md](SECURITY.md).
 
@@ -98,8 +108,9 @@ Details: [SECURITY.md](SECURITY.md).
 
 | Where | What |
 |---|---|
-| [.devcontainer/README.md](.devcontainer/README.md) | How the container is composed, protected paths, env files, known limitations (kept in your repo) |
+| [.devcontainer/README.md](.devcontainer/README.md) | Getting started (new or existing repo), everyday use, updating, known limitations (kept in your repo) |
 | [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) | FAQ and best practices: extensions, packages, software, mounts, services (kept in your repo) |
+| [.devcontainer/REFERENCE.md](.devcontainer/REFERENCE.md) | How it works: compose files, protected paths, env files, toolchains (kept in your repo) |
 | [docs/](docs/README.md) | Architecture, security model, template lifecycle, extending, testing (template repo only) |
 
 Files only relevant to developing this template: `CLAUDE.md`, `docs/`, `.github/template-cleanup/`.

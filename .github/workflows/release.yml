@@ -25,12 +25,12 @@ concurrency:
 
 jobs:
   tests:
-    if: github.repository == 'jp-schneider/devcontainer' && github.ref == 'refs/heads/main'
+    if: github.repository == 'jp-schneider/agent-devcontainer' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/tests.yml
 
   release:
     needs: tests
-    if: github.repository == 'jp-schneider/devcontainer' && github.ref == 'refs/heads/main'
+    if: github.repository == 'jp-schneider/agent-devcontainer' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
