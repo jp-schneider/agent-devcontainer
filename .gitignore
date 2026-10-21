@@ -2,6 +2,8 @@
 .claude-docker/*
 .claude/settings.local.json
 .claude/scratchpad/*/outputs/
+# Agent notes are private by default (plans, memory, scratchpad); publish by moving out of private/
+.claude/private/
 .devcontainer/.generated/
 CLAUDE.local.md
 # Python venvs: a host-side .venv, and the uv toolchain's per-worktree links (symlinks, hence no

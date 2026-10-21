@@ -234,6 +234,13 @@ Add the rule on the host to `.claude/settings.json` (shared with the team) or
 ```
 Keep the `deny` rules that the template ships.
 
+### How do I adapt CLAUDE.md to my project or to me?
+
+`CLAUDE.md` is yours: template updates never touch it. Ready-made rule sets are in
+[claude-md/](claude-md/README.md): `research.md` (scientific rigor, reproducible runs, plots) to
+copy into `CLAUDE.md`, and `personal-preferences.md` for a gitignored `CLAUDE.local.md` with
+who you are and how you like to work, so it stays out of the repo.
+
 ### The agent says a file is read-only. How do I change it?
 
 That's intended for:

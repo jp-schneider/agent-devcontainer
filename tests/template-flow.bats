@@ -43,6 +43,7 @@ setup_file() {
     mkdir -p "$DER/.claude/plans" "$DER/docs"
     echo "own plan" > "$DER/.claude/plans/own-plan.md"
     echo "my project" >> "$DER/README.md"
+    echo "our own license" > "$DER/LICENSE"
     echo "our own notes" > "$DER/docs/notes.md"
     echo "# our project mounts" >> "$DER/.devcontainer/compose.project.yml"
     git -C "$DER" add -A
@@ -51,12 +52,14 @@ setup_file() {
 
     # Template v0.2.0 (tagged), then unreleased work on main
     echo "# v2 change" >> "$TMPL/.devcontainer/shared/compose.core.yml"
+    mkdir -p "$TMPL/.claude/plans" # a published plan; the template tracks none by default
     echo "template plan" > "$TMPL/.claude/plans/2026-10-09-00-00-template-only.md"
     echo "template CLAUDE change" >> "$TMPL/CLAUDE.md"
     echo "v2 docs change" >> "$TMPL/docs/architecture.md"
     echo "new template page" > "$TMPL/docs/new-page.md"
     echo "# template change to project file" >> "$TMPL/.devcontainer/compose.project.yml"
     echo "template security policy change" >> "$TMPL/SECURITY.md"
+    echo "template license change" >> "$TMPL/LICENSE"
     echo "# new template test" > "$TMPL/tests/new.bats"
     echo "0.2.0" > "$TMPL/.devcontainer/VERSION"
     git -C "$TMPL" add -A
@@ -93,7 +96,7 @@ teardown_file() {
 
 @test "cleanup: template-only files removed, marker gone" {
     S="$WORK/after-cleanup"
-    for p in docs tests .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup; do
+    for p in docs tests .vscode/tasks.json .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup .github/release; do
         [ ! -e "$S/$p" ] || { echo "still there: $p" >&2; return 1; }
     done
 }
@@ -114,7 +117,13 @@ teardown_file() {
     # The template moved on since; compare with its v0.1.0 tree (minus the template-only variant)
     git -C "$WORK/template" archive v0.1.0 .devcontainer | (mkdir -p "$WORK/v010" && cd "$WORK/v010" && tar -xf -)
     [ -d "$WORK/v010/.devcontainer/template-dev" ]
-    diff -rq -x template-dev "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
+    diff -rq -x template-dev -x LICENSE "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
+}
+
+@test "cleanup: the template's LICENSE moves to .devcontainer/, the root is left to the project" {
+    S="$WORK/after-cleanup"
+    [ ! -e "$S/LICENSE" ]
+    git -C "$WORK/template" show v0.1.0:LICENSE | cmp -s "$S/.devcontainer/LICENSE" -
 }
 
 # --- Update 1: unrelated histories, default ref
@@ -131,11 +140,17 @@ teardown_file() {
     [ -f "$S/.claude/plans/own-plan.md" ]
     [ "$(grep '^docs/' "$WORK/after-update1.ls-files")" = "docs/notes.md" ]
     [ "$(ls "$S/docs")" = "notes.md" ]
+    [ "$(cat "$S/LICENSE")" = "our own license" ]
+}
+
+@test "update 1: .devcontainer/LICENSE is the new template version's LICENSE" {
+    git -C "$WORK/template" show v0.2.0:LICENSE | cmp -s "$WORK/after-update1/.devcontainer/LICENSE" -
+    tail -n 1 "$WORK/after-update1/.devcontainer/LICENSE" | grep -q 'template license change'
 }
 
 @test "update 1: template-only files are not merged back in" {
     S="$WORK/after-update1"
-    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests .devcontainer/template-dev; do
+    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests .vscode/tasks.json .github/release .devcontainer/template-dev; do
         [ ! -e "$S/$p" ] || { echo "re-added: $p" >&2; return 1; }
         not_grep "^$p" "$WORK/after-update1.ls-files"
     done

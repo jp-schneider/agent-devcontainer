@@ -23,6 +23,9 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
   and the CI lint step
   (`git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning`)
   run as they are.
+- **From VS Code:** *Tasks: Run Test Task* runs all suites; `.vscode/tasks.json` (template only)
+  also has tasks for the current file, the selected test name (`--filter`), bash 3.2, and CI's
+  shellcheck with findings in the Problems panel.
 - **CI** (`.github/workflows/tests.yml`) runs on every push to `main` and on pull requests:
   - Ubuntu: `shellcheck --severity=warning` on all shell scripts, then all suites;
   - macOS: all suites with `/bin/bash` 3.2 as the bash under test, which checks the
@@ -43,15 +46,11 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 **Rules for tests:**
 - **Work dir outside the workspace** (`setup_workdir` in `tests/helpers.bash`). Tests create git
   repos, which `protect-paths.sh` would treat as planted and abort the next container start on.
-- **A negative control per suite:** a deliberately wrong input that must fail. Otherwise a
-  passing suite proves nothing.
+- **A negative control per suite:** a deliberately wrong input that must fail. Otherwise a passing suite proves nothing. Try to explicitly handle edge cases, e.g., a missing overlay or toolchain, a planted repo, a missing apt package, a missing compose file, a missing `docker` binary, etc.
 - **bash 3.2-safe assertions:** no `! cmd` or `[[ … ]]` mid-test, because they don't fail the
   test. Use `not_grep`, `output_has` and `[ … ]`.
-- **The mutation check** in `.claude/scratchpad/*-bats-mutation-check/` (template repo) breaks the
-  scripts deliberately and confirms the suites notice.
-
-Historical one-off checks, such as the compose-merge equivalence of refactors against older
-commits, remain in `.claude/scratchpad/` (template repo only).
+- **Check that a new suite catches bugs:** break the script under test deliberately (one change
+  at a time) and confirm the suite fails.
 
 ## Host checks
 

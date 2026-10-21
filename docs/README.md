@@ -18,6 +18,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 .devcontainer/
 ├── README.md                    user guide (kept in derived repos)
 ├── CUSTOMIZING.md               FAQ + best practices for template users (kept in derived repos)
+├── claude-md/                   optional CLAUDE.md snippets to copy (research, personal preferences)
 ├── update-from-template.sh      merge template updates into a derived repo (default: latest release tag)
 ├── VERSION                      template version of this checkout (kept in derived repos)
 ├── python-uv-gpu/devcontainer.json
@@ -59,7 +60,8 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 docs/                            this folder (template only)
 tests/                           bats suites + run.sh (template only; CI: .github/workflows/tests.yml)
 SECURITY.md, CONTRIBUTING.md, CHANGELOG.md   template only (removed by cleanup, never merged into derived repos)
-CLAUDE.md, .claude/              template development history (template only)
+CLAUDE.md                        agent instructions for developing the template (replaced by cleanup)
+.claude/                         agent notes; private by default in .claude/private/ (gitignored)
 ```
 
 ## Design decisions in one place
@@ -73,5 +75,4 @@ CLAUDE.md, .claude/              template development history (template only)
 | Docker proxy opt-in | `docker inspect` leaks env vars of every container on the host |
 | Claude Code installed at build time | Pinned per image; no unpinned `curl \| bash` on every start |
 | Cleanup runs once; updates via a script | A re-run would overwrite the derived repo's own CLAUDE.md/README |
-
-The full history of these decisions is in `.claude/plans/` (template repo only).
+| No container engine (Podman, rootless BuildKit) inside the devcontainer | Rootless engines need a user namespace; Docker's default seccomp allows creating one only with `CAP_SYS_ADMIN`, which `cap_drop: ALL` removes. Enabling it would mean extra privileges. Backing services go in `compose.project.yml` instead. (Reasoned from moby's default seccomp profile, not tested on a host.) |

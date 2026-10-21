@@ -59,6 +59,7 @@ setup_file() {
     echo "# v2 change" >> "$TMPL/.devcontainer/shared/compose.core.yml"
     echo "v2-ignored/" >> "$TMPL/.gitignore"
     echo "# template-only workflow change" >> "$TMPL/.github/workflows/template-cleanup.yml"
+    mkdir -p "$TMPL/.claude/plans" # a published plan; the template tracks none by default
     echo "template plan" > "$TMPL/.claude/plans/2026-10-11-00-00-template-only.md"
     echo "template CLAUDE change" >> "$TMPL/CLAUDE.md"
     echo "0.2.0" > "$TMPL/.devcontainer/VERSION"
@@ -113,7 +114,8 @@ teardown_file() {
     cmp -s "$S/CLAUDE.md" "$F/CLAUDE.md"
     cmp -s "$S/.claude/overview.md" "$F/overview.md"
     cmp -s "$S/.claude/memory/MEMORY.md" "$F/MEMORY.md"
-    for p in .devcontainer/compose.project.yml .claude/settings.json CLAUDE.md; do
+    git -C "$TMPL" show v0.1.0:LICENSE | cmp -s "$S/.devcontainer/LICENSE" -
+    for p in .devcontainer/compose.project.yml .claude/settings.json CLAUDE.md .devcontainer/LICENSE; do
         grep -qx "$p" "$WORK/after-adopt.staged" || { echo "not staged: $p" >&2; return 1; }
     done
 }
@@ -122,7 +124,7 @@ teardown_file() {
     S="$WORK/after-adopt"
     cmp -s "$S/README.md" "$WORK/before/README.md"
     cmp -s "$S/.claude/notes.md" "$WORK/before/.claude/notes.md"
-    for p in docs tests .devcontainer/template-dev SECURITY.md CHANGELOG.md .github/template-cleanup .github/workflows .claude/plans; do
+    for p in LICENSE docs tests .vscode/tasks.json .devcontainer/template-dev SECURITY.md CHANGELOG.md .github/template-cleanup .github/release .github/workflows .claude/plans; do
         [ ! -e "$S/$p" ] || { echo "added: $p" >&2; return 1; }
     done
 }

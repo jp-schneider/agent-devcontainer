@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # The template's .gitignore, checked with git check-ignore in a scratch repo: venv dirs and the uv
-# toolchain's .venv-<worktree>.ct symlinks (post-start.sh) are ignored at any depth.
+# toolchain's .venv-<worktree>.ct symlinks (post-start.sh) are ignored at any depth; .claude/private/
+# is ignored, the public .claude/ tier is not.
 
 load helpers
 
@@ -38,6 +39,21 @@ ignored() {
 
 @test "negative control: similar names stay visible" {
     for p in "x.venv-a.ct" ".venv-a.ct.bak" ".venv.ct.txt" "venv" "notes.ct"; do
+        touch "$R/$p"
+        if ignored "$p"; then
+            echo "unexpectedly ignored: $p" >&2
+            return 1
+        fi
+    done
+}
+
+@test ".claude/private/ is ignored; the public .claude/ tier is not" {
+    mkdir -p "$R/.claude/private/plans" "$R/.claude/private/memory" "$R/.claude/plans" "$R/.claude/memory"
+    for p in .claude/private/overview.md .claude/private/plans/p.md .claude/private/memory/MEMORY.md; do
+        touch "$R/$p"
+        ignored "$p" || { echo "not ignored: $p" >&2; return 1; }
+    done
+    for p in .claude/overview.md .claude/plans/p.md .claude/memory/MEMORY.md .claude/settings.json; do
         touch "$R/$p"
         if ignored "$p"; then
             echo "unexpectedly ignored: $p" >&2

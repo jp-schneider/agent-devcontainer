@@ -71,7 +71,7 @@ These are easy to break by accident and matter for security:
 - **Nothing that widens access by default:** no `privileged`, no extra capabilities, no
   credential or Docker-socket mounts. Make it opt-in and document the trade-off.
 - **Template-only vs. kept files:** derived repos keep `.devcontainer/`. The cleanup removes
-  `docs/`, `tests/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and `.github/ISSUE_TEMPLATE/`, and
+  `docs/`, `tests/`, `.vscode/tasks.json`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and `.github/ISSUE_TEMPLATE/`, and
   `update-from-template.sh` never merges them back. Put user-facing content in `.devcontainer/`.
 
 ## Pull request checklist
@@ -88,11 +88,19 @@ These are easy to break by accident and matter for security:
 Versions follow [SemVer](https://semver.org/); while at 0.x, a minor version may break things,
 with migration notes in the changelog.
 
-1. Set the new version in `.devcontainer/VERSION`.
-2. In `CHANGELOG.md`, turn **[Unreleased]** into `## [x.y.z] - YYYY-MM-DD` and start a new empty
-   **[Unreleased]**.
-3. Commit, then tag and push: `git tag -a vx.y.z -m "vx.y.z"` and `git push --tags`.
-4. Create a GitHub release from the tag, with the changelog section as notes.
+**With the workflow:** Actions → **Release** → *Run workflow* on `main`, enter `x.y.z`. It runs
+the tests, then [.github/release/prepare.sh](.github/release/prepare.sh) (sets
+`.devcontainer/VERSION`, turns **[Unreleased]** into `## [x.y.z] - YYYY-MM-DD` under a new empty
+**[Unreleased]**), commits, tags `vx.y.z`, pushes both atomically and creates the GitHub release
+with the changelog section as notes. It refuses an existing version or an empty **[Unreleased]**.
+If branch protection blocks `GITHUB_TOKEN` pushes to `main`, allow github-actions to bypass it,
+or release by hand.
+
+**By hand** (same result):
+1. `bash .github/release/prepare.sh x.y.z > notes.md`
+2. `git commit -am "Release vx.y.z"`, `git tag -a vx.y.z -m "vx.y.z"`,
+   `git push --atomic origin main vx.y.z`
+3. `gh release create vx.y.z --verify-tag --title vx.y.z --notes-file notes.md`
 
 Derived repos update with `.devcontainer/update-from-template.sh`, which defaults to the latest
 release tag.

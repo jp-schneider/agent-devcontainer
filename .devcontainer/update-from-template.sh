@@ -20,8 +20,8 @@ ref="${1:-}"
 url="${2:-https://github.com/jp-schneider/devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
 own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml
-SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .github/workflows/tests.yml
-.github/workflows/template-cleanup.yml .devcontainer/template-dev"
+LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
+.github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev"
 legacy=".devcontainer.legacy"
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -91,11 +91,18 @@ for p in $own_paths; do
 done
 
 # Template-owned bookkeeping: always the template's version (conflicts on the first, unrelated merge)
+# shellcheck disable=SC2043 # a list of one for now; more template-owned files go here
 for p in .devcontainer/VERSION; do
     if git cat-file -e "$target:$p" 2> /dev/null; then
         git checkout "$target" -- "$p"
     fi
 done
+# The template's license covers the files it ships: kept as .devcontainer/LICENSE, so a root
+# LICENSE stays the project's own (see own_paths)
+if git cat-file -e "$target:LICENSE" 2> /dev/null; then
+    git update-index --add --cacheinfo "100644,$(git rev-parse "$target:LICENSE"),.devcontainer/LICENSE"
+    git checkout-index -f -- .devcontainer/LICENSE
+fi
 
 moved=""
 seeded=""

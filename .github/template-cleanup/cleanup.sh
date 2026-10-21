@@ -16,15 +16,19 @@ fi
 name="${1:-$(basename "$(git rev-parse --show-toplevel)")}"
 files="$here/files"
 
-# Template-only docs, tests, the template-dev variant, policies (security, contributing, changelog,
-# issue forms) and development history. Other .claude/ files (e.g. settings.json) are kept.
-rm -rf docs tests .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE
+# Template-only docs, tests (and their VS Code tasks), the template-dev variant, policies (security,
+# contributing, changelog, issue forms), the release script and development history. Other .claude/ files (e.g.
+# settings.json) are kept.
+rm -rf docs tests .vscode/tasks.json .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE .github/release
 rm -rf .claude/plans .claude/scratchpad .claude/knowledge .claude/memory
 mkdir -p .claude/memory
 cp "$files/overview.md" .claude/overview.md
 cp "$files/MEMORY.md" .claude/memory/MEMORY.md
 
 cp "$files/CLAUDE.md" CLAUDE.md
+
+# The template's license covers the files it ships; the root LICENSE is left to the project
+[ ! -f LICENSE ] || mv LICENSE .devcontainer/LICENSE
 
 # README stub: project name plus a random joke
 n_jokes=$(grep -c . "$files/jokes.txt")

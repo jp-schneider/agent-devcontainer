@@ -7,44 +7,39 @@ Personal collaboration preferences live in `CLAUDE.local.md` (gitignored, not pa
 
 @CLAUDE.local.md
 
-### Scientific rigor
-- Keep hypotheses, observations and verified facts separate. Label them ("Hypothesis:",
-  "Observed in run X:"). Don't present a guess about *why* something works as fact.
-- Report negative and inconclusive results as plainly as positive ones. Never cherry-pick
-  frames, seeds or metrics.
-- Every number I report must trace back to a run (config + commit + seed).
-- Ablations change one factor at a time, unless stated otherwise.
+- Keep hypotheses, observations and verified facts separate, and label them. Report failures
+  and inconclusive results as plainly as successes.
 
 ### Code quality
 - Match the surrounding code's style, naming and comment density. The project's linter and
   type checker must pass on changed files.
 - Keep diffs focused: no unrelated refactors mixed into a functional change. Suggest them separately.
-- Document tensor shapes and coordinate conventions (frames, units, normalization) at function
-  boundaries.
-- Add unit tests for non-trivial math: geometry, transforms, losses.
+- Add unit tests for non-trivial logic.
 - No new dependencies without asking.
 - Never commit, push or run destructive git operations without explicit approval.
 
-### Reproducible experiments
-- Every run records: commit hash, dirty diff (if any), full resolved config, seed, command line,
-  environment (lockfile).
-- Never edit the config of an experiment that has already run. Copy it to a new config instead.
-- Before a long or expensive job (GPU hours, large data), confirm with the user and do a short
-  smoke run first.
-
-### The `.claude/` directory (versioned in git)
+### The `.claude/` directory: private by default, public by opt-in
 ```
 .claude/
-├── overview.md       # index of all plans, grouped by topic and status
-├── plans/            # YYYY-MM-DD-HH-MM-<descriptive-name>.md
-├── memory/           # one fact per file + MEMORY.md index
-├── scratchpad/       # YYYY-MM-DD-HH-MM-<descriptive-name>/  (README.md, code, outputs/)
-└── knowledge/        # distilled component docs (see Token efficiency)
+├── private/          # gitignored, local to this machine: the DEFAULT for everything below
+│   ├── overview.md   # index of all plans, grouped by topic and status
+│   ├── plans/        # YYYY-MM-DD-HH-MM-<descriptive-name>.md
+│   ├── memory/       # one fact per file + MEMORY.md index
+│   ├── scratchpad/   # YYYY-MM-DD-HH-MM-<descriptive-name>/  (README.md, code, outputs/)
+│   └── knowledge/    # distilled component docs (see Token efficiency)
+└── overview.md, plans/, memory/, scratchpad/, knowledge/   # committed: published entries only
 ```
-- Everything in `.claude/` is committed except `settings.local.json` and `scratchpad/*/outputs/`.
+- New entries go to `.claude/private/`; create the subfolders on demand. Paths below are relative
+  to the tier (`plans/` = `.claude/private/plans/` unless published).
+- Read both tiers: both `overview.md` and both `memory/MEMORY.md`.
+- **Publish** only when the user asks: move the entry to the same path without `private/`, move
+  its index line to the public index, and check it for personal data and machine paths first.
+  Public entries never link to private ones.
+- Private entries don't sync across machines. Anything needed elsewhere must be published.
+- Committed: the public tier, except `settings.local.json` and `scratchpad/*/outputs/`.
 - Never write sensitive information here (API keys, credentials, personal data).
 
-**Plans**: all plans go in `.claude/plans/`, named by creation time. Each plan contains:
+**Plans**: all plans go in `plans/`, named by creation time. Each plan contains:
 - *Context*: why we are doing this (a few sentences)
 - *Git checkpoint*: commit hash and dirty status, for code-related plans. If files relevant to
   the plan are uncommitted, ask the user to commit first.
@@ -52,13 +47,13 @@ Personal collaboration preferences live in `CLAUDE.local.md` (gitignored, not pa
 - *Status*: draft | active | done | abandoned
 - *Outcome*: filled in at the end, with links to scratchpad entries and runs
 
-Keep `.claude/overview.md` up to date with a link to every plan.
+Keep the tier's `overview.md` up to date with a link to every plan.
 
-**Memory**: use `.claude/memory/` only; do not use the built-in memory location outside
-the repo. The user works across machines, and the repo is the single source of truth.
+**Memory**: use `memory/` only; do not use the built-in memory location outside the repo.
+Published memories in the repo are the source of truth across machines.
 - When the user states a preference, constraint or important fact, write it there (one fact
   per file, frontmatter with `name`, `description`, `type`, `scope`, then the fact and a short
-  "Why:"). Add a one-line pointer in `.claude/memory/MEMORY.md`.
+  "Why:"). Add a one-line pointer in `memory/MEMORY.md`.
 - `scope: global` = about the user or the way we work, valid in any project (candidates for
   copying into other projects' memory). `scope: project` = specific to this repository.
   In MEMORY.md, list global and project memories under separate headings.
@@ -66,18 +61,13 @@ the repo. The user works across machines, and the repo is the single source of t
   whether something belongs in memory, ask.
 
 **Scratchpad**: exploratory work (analyses, quick scripts, plots) goes in
-`.claude/scratchpad/YYYY-MM-DD-HH-MM-<name>/`. Code there can be quick but must be understandable.
+`scratchpad/YYYY-MM-DD-HH-MM-<name>/`. Code there can be quick but must be understandable.
 Each entry has a README.md with: purpose, commit hash and dirty status, how to reproduce
 (exact command), and findings. Generated files go in the entry's `outputs/` subdir
-(gitignored). If an output should be kept (checkpoints, key figures, data), ask the user
-where to move it.
-
-**Plots**: save them as files in `outputs/`, together with the script that generated them, so
-they can be regenerated. Label axes with units, add a title, and note the run/config in the
-caption. I check each plot myself before presenting it, then give the user its path.
+(gitignored). If an output should be kept, ask the user where to move it.
 
 ### Token efficiency
-- Keep `.claude/knowledge/`: one short file per component covering responsibility, main
+- Keep `knowledge/`: one short file per component covering responsibility, main
   interfaces, how it interacts with other components, and non-obvious invariants. Each file
   records the commit hash it was last verified at.
 - Read knowledge files before source files. Only read the source when exact details matter,
@@ -99,3 +89,30 @@ caption. I check each plot myself before presenting it, then give the user its p
 - Never blindly remove database entries, configuration files, or system settings. Always confirm with the user before making severe changes.
 
 <!-- END GENERAL WORKING GUIDELINES -->
+
+## This repository: the devcontainer template
+
+### Shell code
+- Host-side scripts (everything `initialize.sh` and `update-from-template.sh` run, the cleanup)
+  stay **bash 3.2 compatible** (macOS): no `mapfile`, associative arrays, `${x,,}`, `[[ -v ]]`.
+  Scripts that only run in the container may use the image's bash.
+- CI's shellcheck must pass:
+  `git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning`.
+  A `# shellcheck disable=SCxxxx` always carries a reason on the same line.
+
+### Tests
+- `tests/run.sh` (bats, pinned) must pass. Every behaviour change gets a bats test, and every
+  suite a negative control. For a new suite, break the script under test once and confirm it fails.
+- Never create git repos inside the workspace (use `setup_workdir`): the nested-repo check aborts
+  the next container start.
+- Docker isn't available in the container. List the affected host checks
+  (`docs/testing.md#host-checks`) as not verified instead of claiming them.
+
+### Template invariants
+- Keep the invariants in `CONTRIBUTING.md#invariants-please-keep-these-intact`; nothing widens
+  the agent's access by default.
+- A new **template-only** file goes into five places: the `rm` list in
+  `.github/template-cleanup/cleanup.sh`, `own_paths` in `.devcontainer/update-from-template.sh`,
+  the template-only lists in `tests/template-flow.bats` and `tests/adopt.bats`, and
+  `docs/lifecycle.md`.
+- Every change gets a `CHANGELOG.md` entry under **[Unreleased]** and the matching docs update.

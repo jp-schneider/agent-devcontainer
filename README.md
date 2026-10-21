@@ -1,8 +1,9 @@
 # devcontainer: a hardened home for coding agents
 
-GitHub template for hardened devcontainers in which coding agents, currently claude code can run more safely.
-It has a shared hardened core plus per-stack variants (currently `python-uv-gpu` and
-`python-uv-cpu`), and works on WSL2, native Linux and macOS.
+GitHub template for hardened devcontainers in which coding agents (currently Claude Code, also
+with local models via LM Studio) can run more safely. It has a shared hardened core plus variants
+(`base` without a toolchain, `python-uv-cpu` and `python-uv-gpu`), and works on WSL2, native Linux
+and macOS.
 
 - **Limited rights:** the agent runs without root, without capabilities and without access to
   your SSH keys or Docker.
@@ -101,12 +102,12 @@ Details: [SECURITY.md](SECURITY.md).
 | [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) | FAQ and best practices: extensions, packages, software, mounts, services (kept in your repo) |
 | [docs/](docs/README.md) | Architecture, security model, template lifecycle, extending, testing (template repo only) |
 
-Files only relevant to developing this template: `CLAUDE.md`, `.claude/` (plans, scratchpad),
-`docs/`, `.github/template-cleanup/`.
+Files only relevant to developing this template: `CLAUDE.md`, `docs/`, `.github/template-cleanup/`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). In repos created from the template, the license moves to `.devcontainer/LICENSE`
+(it covers the template's files), so the root `LICENSE` is free for your project's own.
 
 ---
 

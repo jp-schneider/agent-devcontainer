@@ -2,6 +2,7 @@
 # shellcheck shell=bash
 
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd -P)"
+# shellcheck disable=SC2034 # used by the .bats files that load this
 SHARED="$REPO_ROOT/.devcontainer/shared"
 # The bash that runs the scripts under test; the macOS CI job sets /bin/bash (3.2)
 BASH_UNDER_TEST="${BASH_UNDER_TEST:-bash}"
@@ -98,6 +99,7 @@ not_grep() {
 }
 
 # output_has <substring>: $output (from `run`) contains it
+# shellcheck disable=SC2154 # $output is set by bats' run
 output_has() {
     case "$output" in
         *"$1"*) return 0 ;;

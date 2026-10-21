@@ -1,0 +1,73 @@
+name: Release
+
+# Publishes a template release from main: runs the tests, sets .devcontainer/VERSION, dates the
+# CHANGELOG's [Unreleased] section (.github/release/prepare.sh), commits, tags vX.Y.Z and creates
+# the GitHub release with that section as notes. Run it from the Actions tab.
+# Template repo only: repos created from the template keep this file (a GITHUB_TOKEN push can't
+# delete workflows), but the repository guard keeps it from running there.
+# The push to main needs GITHUB_TOKEN to be allowed past branch protection; if main requires pull
+# requests, add github-actions to the bypass list or release by hand (see CONTRIBUTING.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, X.Y.Z without the v (e.g. 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    if: github.repository == 'jp-schneider/devcontainer' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    needs: tests
+    if: github.repository == 'jp-schneider/devcontainer' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0 # tags, to refuse an existing one
+
+      - name: Refuse an existing tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            echo "Tag v$VERSION already exists" >&2
+            exit 1
+          fi
+
+      - name: Prepare VERSION and CHANGELOG
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          bash .github/release/prepare.sh "$VERSION" > "$RUNNER_TEMP/notes.md"
+          git diff --stat
+
+      - name: Commit, tag and push
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -am "Release v$VERSION"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          # Atomic: either main and the tag both land, or neither (e.g. main moved meanwhile)
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$VERSION"
+
+      - name: Create the GitHub release
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v$VERSION" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"

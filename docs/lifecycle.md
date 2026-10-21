@@ -13,14 +13,16 @@ template-only files are removed afterwards by a workflow.
 [cleanup.sh](../.github/template-cleanup/cleanup.sh) once and commits the result.
 
 **What it does:**
-- Removes the template-only `docs/`, `tests/`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
-  `.github/ISSUE_TEMPLATE/` and `.claude/{plans,scratchpad,knowledge,memory}`. Other `.claude/` files,
+- Removes the template-only `docs/`, `tests/`, `.vscode/tasks.json`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
+  `.github/ISSUE_TEMPLATE/`, `.github/release/` and `.claude/{plans,scratchpad,knowledge,memory}`. Other `.claude/` files,
   e.g. `settings.json`, are kept.
 - Writes fresh `.claude/overview.md` and `.claude/memory/MEMORY.md`.
-- Replaces `CLAUDE.md` with the generic version: no personal persona, and research rules in an
-  optional block.
+- Replaces `CLAUDE.md` with the generic version: no personal persona, and a pointer to the
+  optional rule sets in `.devcontainer/claude-md/` (research projects, personal preferences).
 - Replaces `README.md` with a stub: the repo name, a random line from `files/jokes.txt`, and a
   link to `.devcontainer/README.md`.
+- Moves `LICENSE` to `.devcontainer/LICENSE`: the template's license covers the files it ships,
+  and the root is left for the project's own license.
 - Deletes `.github/template-cleanup/` itself. This directory is the "not yet cleaned" marker.
 
 **Triggers and guards:**
@@ -53,15 +55,17 @@ derived repo:
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update). Stops if the merge didn't start (no `MERGE_HEAD`).
 4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
-   .devcontainer/compose.project.yml SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests
-   .github/workflows/tests.yml .github/workflows/template-cleanup.yml`):
+   .devcontainer/compose.project.yml LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
+   .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
+   .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release
+   .devcontainer/template-dev`):
    - if the derived repo has it, removes files the template *added* under it and restores the
      repo's version (this also resolves conflicts there);
    - otherwise removes the template's copy.
 
    Only tracked files are touched, so ignored files like `.claude/settings.local.json` survive.
    `.devcontainer/VERSION` always takes the template's value (it would otherwise conflict on the
-   first, unrelated merge).
+   first, unrelated merge). `.devcontainer/LICENSE` is always the template's root `LICENSE`.
    A conflicted `.gitignore` is resolved as ours plus the template's missing lines.
 5. Leaves the merge staged and lists remaining conflicts. The user reviews and commits.
 

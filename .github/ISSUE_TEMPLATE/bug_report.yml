@@ -1,0 +1,58 @@
+name: Bug report
+description: Something doesn't work as documented (build, start-up, protection, toolchains, updates).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security issues (a way around the protections) go to a **private** report instead:
+        Security tab → Report a vulnerability.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Reopen in Container → python-uv-cpu
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Host
+      placeholder: "e.g. Windows 11 + WSL2 (Ubuntu 24.04), macOS 15 (arm64), Fedora 41"
+    validations:
+      required: true
+  - type: input
+    id: docker
+    attributes:
+      label: Docker and Compose versions
+      description: Output of `docker version --format '{{.Server.Version}}'` and `docker compose version`.
+    validations:
+      required: true
+  - type: input
+    id: variant
+    attributes:
+      label: Variant and toolchains
+      placeholder: "e.g. python-uv-gpu; base + node"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Template version
+      description: Content of `.devcontainer/VERSION`, or the commit.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Dev Containers log (Command Palette → "Dev Containers: Show Container Log") or the output of
+        `initialize.sh`. Remove host paths or names you don't want to share.
+      render: text

@@ -1,0 +1,66 @@
+{
+  // Template repo only: tests/ doesn't exist in derived repos.
+  // Run via "Tasks: Run Test Task" (default: all suites) or "Tasks: Run Task".
+  // "process" tasks pass arguments without a shell, so selected text needs no quoting.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bats: all suites",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tests/run.sh"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "bats: current file",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tests/run.sh", "${file}"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      // Select (part of) a test name in a .bats file first; bats --filter takes a regex
+      "label": "bats: selected test in current file",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tests/run.sh", "--filter", "${selectedText}", "${file}"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "bats: all suites with bash 3.2 (macOS)",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tests/run.sh"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "BASH_UNDER_TEST": "/bin/bash" } },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      // Same command as .github/workflows/tests.yml
+      "label": "shellcheck (as CI)",
+      "type": "shell",
+      "command": "git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning --format=gcc",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "shellcheck",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    }
+  ]
+}
