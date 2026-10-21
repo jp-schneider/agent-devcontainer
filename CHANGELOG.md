@@ -10,6 +10,18 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 ## [Unreleased]
 
 ### Added
+- **Toolchain `node`:** Node via fnm (pinned, checksum-verified; per-project versions from
+  `.nvmrc` / `.node-version`, shared across projects in the volume `agent-sandbox-node-fnm`), npm,
+  pnpm/yarn via corepack (`packageManager`). Each package directory's `node_modules` is its own
+  volume, mounted directly (`.generated/compose.node.yml`). Shipped in no variant; CUSTOMIZING.md
+  shows how to add it.
+- **Several toolchains per variant:** `initialize.sh <variant> <toolchain>...` (e.g. `uv node`);
+  installed and started in that order. `shared/post-start.sh` runs their `post-start.sh`.
+- **`.generated/mountpoints.txt`:** directories under `/app` the image creates as the user, so named
+  volumes mounted there are user-owned.
+- **Variant `template-dev` (template repo only):** `base` plus shellcheck, Python 3 + PyYAML
+  and the bats/shellcheck VS Code extensions, for developing the template in its own container.
+  The template cleanup removes it, and `update-from-template.sh` never merges it into derived repos.
 - **`.gitignore` ignores Python venvs:** a plain `.venv` and the uv toolchain's
   `.venv-<worktree>.ct` links, at any depth (`tests/gitignore.bats`).
 - **Automated tests:** bats-core suites in `tests/` (protect-paths, initialize, resolve-config,
@@ -26,6 +38,13 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   checksum-verified, sharing the host's model folder). See CUSTOMIZING.md.
 
 ### Changed
+- **Toolchain build arg (breaking for custom toolchains):** `TOOLCHAIN` (set in a toolchain's
+  `compose.yml`) is replaced by `TOOLCHAINS`, which `compose.core.yml` passes from `initialize.sh`.
+  Remove `build.args.TOOLCHAIN` from custom toolchain overlays, and call `shared/post-start.sh` in
+  `postStartCommand` instead of a toolchain's `post-start.sh`.
+- **Resource names:** new Docker resources use the prefix `agent-sandbox-`. Existing `claude-code-*`
+  containers, networks and volumes keep their names.
+- `.gitignore` ignores `node_modules/`.
 - `host-override.sh`: new test hook `WSL_LIB_DIR`; behaviour unchanged.
 - The cleanup and `update-from-template.sh` treat `tests/` and the tests workflow as template-only.
 - `update-from-template.sh`: a `.gitignore` conflict is resolved as ours plus the template's

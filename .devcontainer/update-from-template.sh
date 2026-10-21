@@ -21,7 +21,7 @@ url="${2:-https://github.com/jp-schneider/devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
 own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml
 SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .github/workflows/tests.yml
-.github/workflows/template-cleanup.yml"
+.github/workflows/template-cleanup.yml .devcontainer/template-dev"
 legacy=".devcontainer.legacy"
 
 if [ -n "$(git status --porcelain)" ]; then

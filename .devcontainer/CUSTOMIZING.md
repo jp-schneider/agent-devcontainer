@@ -64,7 +64,8 @@ Pick by what it is:
 
 | What | Where | Persists across rebuilds? |
 |---|---|---|
-| Language runtime / common tool (Node, Go, Rust, AWS CLI, …) | [Dev Container Feature](https://containers.dev/features) in `devcontainer.json` | yes (in the image) |
+| Node (npm, pnpm, yarn) | the `node` toolchain, see [How do I use Node?](#how-do-i-use-node-npm-pnpm) | yes (volumes) |
+| Other language runtime / common tool (Go, Rust, AWS CLI, …) | [Dev Container Feature](https://containers.dev/features) in `devcontainer.json` | yes (in the image) |
 | Python CLI tools (pre-commit, nox, …) | your project's dev dependencies (`uv add --dev …`), run via `uv run` | yes (venv volume) |
 | User-level tools for everyone in the project | `postCreateCommand` in `devcontainer.json` (e.g. `uv tool install …`) | re-run on each container creation |
 | A reusable stack for several projects | a new toolchain in `shared/toolchains/` (template change; see the template's `docs/extending.md`) | yes |
@@ -171,6 +172,30 @@ services:
 Use uv as usual (`uv add …`, `uv sync`). Each project's venv lives in a persistent volume and
 survives rebuilds; the link is `.venv-<worktree>.ct`, see [README.md](README.md#uv-details). Don't
 create `.venv` by hand.
+
+### How do I use Node (npm, pnpm)?
+
+Add the `node` toolchain to your variant. It works alone or next to uv. In the variant's
+`devcontainer.json`, add two compose files before `compose.project.yml`, and `node` to
+`initializeCommand`:
+
+```jsonc
+"dockerComposeFile": [
+  "../shared/compose.core.yml",
+  "../shared/toolchains/uv/compose.yml",
+  "../shared/toolchains/node/compose.yml",
+  "../.generated/compose.node.yml",
+  "../compose.project.yml",
+  "../.generated/compose.host.yml",
+  "../.generated/compose.protect.yml"
+],
+"initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "<variant>", "uv", "node"],
+```
+
+Then rebuild. Pin the Node version with `.nvmrc` or `.node-version` and the package manager with
+`"packageManager": "pnpm@<version>"` in `package.json`. `node_modules` of every package directory
+lives in its own volume. **After adding a package directory, rebuild** to give it one. Details:
+[README.md](README.md#node-details).
 
 ### How do I use the GPU or give the container more resources?
 
@@ -306,6 +331,8 @@ LMSTUDIO_API_TOKEN=...                 # host mode with authentication; visible 
 | `Read-only file system` / `Device or resource busy` | A protected path; edit it on the host. |
 | `container name ... is already in use` | An old container from a different setup. On the host: `docker rm -f claude-code-<folder>`. |
 | A package or extension is missing after editing | Rebuild, not just reopen. |
+| `node post-start: WARNING …/node_modules has no volume` | A package directory added since the last build. Rebuild. |
+| `node post-start: WARNING …/node_modules is not writable` | Its volume was created before the image had the mount point. On the host, `docker volume rm` it (name in `.devcontainer/.generated/compose.node.yml`), then rebuild. |
 | A file looks empty in the container | It matches a mask pattern (`shared/mask-patterns.txt`). Add an `!` exception in `.devcontainer/mask-patterns.txt` if the agent should see it. |
 | What config is actually used? | `.devcontainer/.generated/compose.resolved.yml` (written at each start). |
 

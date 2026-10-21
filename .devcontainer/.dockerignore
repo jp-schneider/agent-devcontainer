@@ -3,4 +3,5 @@
 !shared/Dockerfile
 !shared/toolchains/
 !.generated/apt-packages.txt
+!.generated/mountpoints.txt
 !shared/bin/

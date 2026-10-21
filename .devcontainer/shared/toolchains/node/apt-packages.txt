@@ -1,0 +1,5 @@
+# System packages for the node toolchain, installed as root at image build.
+# Project-specific packages (e.g. Playwright's browser dependencies) belong in
+# .devcontainer/apt-packages.txt or .devcontainer/<variant>/apt-packages.txt, not here.
+# node-gyp (native addons): a C/C++ toolchain, make and Python; build-essential includes gcc and make
+build-essential python3

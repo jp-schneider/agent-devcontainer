@@ -93,7 +93,7 @@ teardown_file() {
 
 @test "cleanup: template-only files removed, marker gone" {
     S="$WORK/after-cleanup"
-    for p in docs tests SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup; do
+    for p in docs tests .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup; do
         [ ! -e "$S/$p" ] || { echo "still there: $p" >&2; return 1; }
     done
 }
@@ -111,9 +111,10 @@ teardown_file() {
 
 @test "cleanup: workflow files stay (a GITHUB_TOKEN push can't delete them), .devcontainer untouched" {
     [ -f "$WORK/after-cleanup/.github/workflows/template-cleanup.yml" ]
-    # The template moved on since; compare with its v0.1.0 tree
+    # The template moved on since; compare with its v0.1.0 tree (minus the template-only variant)
     git -C "$WORK/template" archive v0.1.0 .devcontainer | (mkdir -p "$WORK/v010" && cd "$WORK/v010" && tar -xf -)
-    diff -rq "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
+    [ -d "$WORK/v010/.devcontainer/template-dev" ]
+    diff -rq -x template-dev "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
 }
 
 # --- Update 1: unrelated histories, default ref
@@ -134,7 +135,7 @@ teardown_file() {
 
 @test "update 1: template-only files are not merged back in" {
     S="$WORK/after-update1"
-    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests; do
+    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests .devcontainer/template-dev; do
         [ ! -e "$S/$p" ] || { echo "re-added: $p" >&2; return 1; }
         not_grep "^$p" "$WORK/after-update1.ls-files"
     done

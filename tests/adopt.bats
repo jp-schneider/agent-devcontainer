@@ -122,7 +122,7 @@ teardown_file() {
     S="$WORK/after-adopt"
     cmp -s "$S/README.md" "$WORK/before/README.md"
     cmp -s "$S/.claude/notes.md" "$WORK/before/.claude/notes.md"
-    for p in docs tests SECURITY.md CHANGELOG.md .github/template-cleanup .github/workflows .claude/plans; do
+    for p in docs tests .devcontainer/template-dev SECURITY.md CHANGELOG.md .github/template-cleanup .github/workflows .claude/plans; do
         [ ! -e "$S/$p" ] || { echo "added: $p" >&2; return 1; }
     done
 }

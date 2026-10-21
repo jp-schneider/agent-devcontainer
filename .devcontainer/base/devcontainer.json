@@ -29,8 +29,9 @@
   },
   // No toolchain: core image only
   "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "base"],
-  // postStartCommand: clean up sockets created before VS Code attaches
-  "postStartCommand": "find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
+  // postStartCommand: toolchain hooks via shared/post-start.sh (none here), then clean up sockets
+  // created before VS Code attaches
+  "postStartCommand": "bash /app/.devcontainer/shared/post-start.sh; find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
   // IPC socket cleanup (vscode-ipc-*.sock, vscode-git-*.sock) is handled by a background
   // loop in the Docker Compose command – postAttachCommand is unreliable for background
   // processes due to VS Code's cgroup-based lifecycle cleanup.

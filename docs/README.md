@@ -23,6 +23,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
 ├── base/devcontainer.json       no toolchain
+├── template-dev/                template repo only: base + test/lint tools (removed by cleanup)
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
@@ -44,10 +45,14 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
     ├── devcontainer.md          agent-facing environment notes (imported by CLAUDE.md)
     ├── devcontainer.docker-proxy.md
     ├── devcontainer.lmstudio.md
+    ├── devcontainer.node.md
+    ├── post-start.sh            postStartCommand: runs each toolchain's post-start.sh
     ├── compose.lmstudio-{host,sidecar}.yml  opt-in: local LM Studio backend for claude-local
     ├── lmstudio/Dockerfile      llmster sidecar image (pinned, checksum-verified)
     ├── bin/claude-local         Claude Code against LM Studio (copied into the image)
-    └── toolchains/uv/           apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml
+    └── toolchains/
+        ├── uv/                  apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml
+        └── node/                same files; init-host.sh writes .generated/compose.node.yml
 .github/
 ├── workflows/template-cleanup.yml
 └── template-cleanup/            cleanup.sh + files/ (generic CLAUDE.md, skeletons, jokes)

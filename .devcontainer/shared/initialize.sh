@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 set -uo pipefail
 # Runs on the host from the workspace root (devcontainer initializeCommand).
-# Usage: initialize.sh <variant> [<toolchain>]   e.g. "python-uv-gpu uv"; omit the toolchain for core only
+# Usage: initialize.sh <variant> [<toolchain>...]   e.g. "python-uv-gpu uv" or "python-uv-cpu uv node";
+# omit the toolchains for core only. Toolchains are set up (host init, image install, post-start) in
+# the order given.
 
 VARIANT="${1:-}"
-TOOLCHAIN="${2:-}"
+[ $# -gt 0 ] && shift
+TOOLCHAINS="$*"
+
+for t in $TOOLCHAINS; do
+    if [ ! -d ".devcontainer/shared/toolchains/$t" ]; then
+        echo "initialize: ERROR unknown toolchain '$t' (no .devcontainer/shared/toolchains/$t/)" >&2
+        exit 1
+    fi
+done
 
 echo "Initializing devcontainer environment..."
 
@@ -38,16 +48,39 @@ echo "LOCAL_WORKSPACE_FOLDER=$PWD" >> .devcontainer/shared/.env
 echo "HOST_HOME=$HOME" >> .devcontainer/shared/.env
 echo "HOST_UID=$(id -u)" >> .devcontainer/shared/.env
 echo "HOST_GID=$(id -g)" >> .devcontainer/shared/.env
+# The variant's toolchains: build arg (Dockerfile) and DEVCONTAINER_TOOLCHAINS (shared/post-start.sh)
+echo "TOOLCHAINS=\"$TOOLCHAINS\"" >> .devcontainer/shared/.env
+# Name prefix for new Docker resources (volumes of the node toolchain); older resources keep their
+# claude-code-* names
+echo "RESOURCE_PREFIX=agent-sandbox" >> .devcontainer/shared/.env
 
-# Toolchain host-side hook (toolchains/<name>/init-host.sh), toolchain passed by the variant
-if [ -n "$TOOLCHAIN" ] && [ -f ".devcontainer/shared/toolchains/$TOOLCHAIN/init-host.sh" ]; then
-    echo "Running $TOOLCHAIN toolchain host init..."
-    bash ".devcontainer/shared/toolchains/$TOOLCHAIN/init-host.sh" .devcontainer/shared/.env
+mkdir -p .devcontainer/.generated
+# Directories under /app that the image creates as the user (Dockerfile): mount points of named
+# volumes, which take the ownership of that directory on first mount. Toolchain init-host.sh
+# scripts append to it. Always written, so the Dockerfile can COPY it.
+: > .devcontainer/.generated/mountpoints.txt
+
+# A toolchain whose overlay is missing from the variant's compose list would be installed in the
+# image without its volumes and environment (same extraction as resolve-config.sh)
+compose_list=""
+if [ -f ".devcontainer/$VARIANT/devcontainer.json" ]; then
+    compose_list="$(awk '/"dockerComposeFile"[[:space:]]*:/ {f = 1} f {print} f && /\]/ {exit}' \
+        ".devcontainer/$VARIANT/devcontainer.json")"
 fi
+# Toolchain host-side hooks (toolchains/<name>/init-host.sh), toolchains passed by the variant
+for t in $TOOLCHAINS; do
+    case "$compose_list" in
+        *"shared/toolchains/$t/compose.yml"*) ;;
+        *) echo "initialize: WARNING toolchain $t: shared/toolchains/$t/compose.yml is not in the dockerComposeFile list of $VARIANT" >&2 ;;
+    esac
+    if [ -f ".devcontainer/shared/toolchains/$t/init-host.sh" ]; then
+        echo "Running $t toolchain host init..."
+        bash ".devcontainer/shared/toolchains/$t/init-host.sh" .devcontainer/shared/.env
+    fi
+done
 
 # Extra system packages for the image: project-wide + variant-specific lists, comments stripped,
 # one package (optionally "pkg=version") per line. Always written, so the Dockerfile can COPY it.
-mkdir -p .devcontainer/.generated
 for f in .devcontainer/apt-packages.txt ".devcontainer/$VARIANT/apt-packages.txt"; do
     [ -n "$VARIANT" ] || [ "$f" = .devcontainer/apt-packages.txt ] || continue
     [ -f "$f" ] && sed 's/#.*//' "$f"

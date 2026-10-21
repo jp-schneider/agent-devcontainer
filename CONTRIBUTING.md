@@ -20,7 +20,9 @@ For larger changes, please open an issue first so we can agree on the approach.
 
 ## Development setup
 
-1. Fork and clone the repository, then open it in VS Code → "Reopen in Container".
+1. Fork and clone the repository, then open it in VS Code → "Reopen in Container" and pick the
+   **`template-dev`** variant. It has what the tests and CI need (shellcheck, Python 3 + PyYAML;
+   `tests/run.sh` fetches the pinned bats) and the bats and shellcheck VS Code extensions.
 2. To let a coding agent edit the template itself (`.devcontainer/` is read-only in the container
    by design), set this in `.env` on the host:
    ```

@@ -9,6 +9,10 @@ None by default: the Docker socket is not mounted and the `docker` CLI is not in
 `compose.docker-proxy.yml` overlay, read-only access is available, see
 `devcontainer.docker-proxy.md`.
 
+## Node
+None by default. If the variant includes the node toolchain (`DEVCONTAINER_TOOLCHAINS` contains
+`node`), see `devcontainer.node.md`.
+
 ## Local model
 None by default. If the variant enables an LM Studio overlay (`LMSTUDIO_BASE_URL` is set), see
 `devcontainer.lmstudio.md`.

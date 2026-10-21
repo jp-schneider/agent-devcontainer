@@ -77,6 +77,21 @@ same() {
     done
 }
 
+@test "postStartCommand runs the toolchain hooks via shared/post-start.sh" {
+    for v in $VARIANTS; do
+        json "$v" '.postStartCommand' | grep -qF 'bash /app/.devcontainer/shared/post-start.sh;'
+    done
+}
+
+@test "every toolchain in initializeCommand has its compose.yml in the compose list" {
+    local t
+    for v in $VARIANTS; do
+        for t in $(json "$v" '.initializeCommand[3:][]' | tr -d '"'); do
+            json "$v" '.dockerComposeFile[]' | grep -qxF "\"../shared/toolchains/$t/compose.yml\""
+        done
+    done
+}
+
 @test "negative control: same() detects a difference" {
     VARIANTS="$VARIANTS"
     json() { case "$1" in "${VARIANTS%% *}") echo a ;; *) echo b ;; esac; }

@@ -1,9 +1,6 @@
 # Overlay: uv (Python) toolchain.
 services:
   claude-code:
-    build:
-      args:
-        TOOLCHAIN: uv
     environment:
       # From shared/.env (written by init-host.sh); used by uv and post-start.sh
       UV_VENVS_ROOT: ${UV_VENVS_ROOT}

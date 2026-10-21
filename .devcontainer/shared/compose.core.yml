@@ -20,6 +20,8 @@ services:
       args:
         USER_UID: ${HOST_UID:-1000}
         USER_GID: ${HOST_GID:-1000}
+        # The variant's toolchains, in order (initialize.sh <variant> <toolchain>...)
+        TOOLCHAINS: ${TOOLCHAINS:-}
     container_name: claude-code-${WORKTREE_NAME:-project}
     cap_drop:
       - ALL
@@ -28,20 +30,18 @@ services:
     volumes:
       # Mount the workspace folder into the container at /app, using cached mode for performance
       - ${LOCAL_WORKSPACE_FOLDER}:/app:cached
-      # Persist node_modules in a named volume to speed up subsequent starts and avoid permission issues with host-mounted node_modules
-      #- node-modules:/app/node_modules
       # Git worktree support — mount main repo .git to the same absolute path inside the container
       - ${GIT_MAIN_REPO_PATH}/.git:${GIT_MAIN_REPO_PATH}/.git:cached
       - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.claude.json:/home/vscode/.claude.json
       - ${LOCAL_WORKSPACE_FOLDER}/.claude-docker/.bash_history:/home/vscode/.bash_history
       - claude-config:/home/vscode/.claude
-      # Playwright browser binaries — persisted so they survive container restarts
-      #- playwright-browsers:/home/vscode/.cache/ms-playwright
     environment:
       # Required for HMR file watching in WSL/Docker
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
+      # Read by shared/post-start.sh to run each toolchain's post-start.sh
+      DEVCONTAINER_TOOLCHAINS: ${TOOLCHAINS:-}
     env_file:
       # container.env, not .env: .env is host-only and masked in the container (protect-paths.sh)
       - ${LOCAL_WORKSPACE_FOLDER}/container.env

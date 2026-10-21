@@ -23,7 +23,7 @@ agents with more access than they intend, and because it will get better with mo
 - **Secret files are masked:** `.env`, keys, credential files and more, via configurable regex
   patterns. Container variables go in a separate `container.env`.
 - **Variants:** `python-uv-gpu` (CUDA), `python-uv-cpu` and `base` (no toolchain), built from a
-  shared core plus overlays, with pluggable toolchains.
+  shared core plus overlays, with pluggable, combinable toolchains (uv; node with fnm, npm, pnpm).
 - **Project customization** without touching template files: extra packages, mounts, services.
   Template updates can be merged later.
 
@@ -73,7 +73,7 @@ whatever your experience level. Especially valuable:
 - **Closing known limitations:** egress filtering, pinning the supply chain, and anything else from
   the [list](.devcontainer/README.md#known-limitations).
 - **Testing on other hosts:** native Linux, macOS, other GPUs.
-- **New variants and toolchains:** Node, conda, pyenv + poetry, … (see
+- **New variants and toolchains:** conda, pyenv + poetry, Playwright, … (see
   [docs/extending.md](docs/extending.md)).
 - **Docs and usability:** anything that was confusing to set up.
 

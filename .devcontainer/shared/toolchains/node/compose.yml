@@ -1,0 +1,25 @@
+# Overlay: node toolchain (fnm per-project Node versions; npm, pnpm/yarn via corepack).
+# The node_modules volumes (one per package dir) are in ../../../.generated/compose.node.yml,
+# written by init-host.sh; variants list both files.
+services:
+  claude-code:
+    environment:
+      FNM_DIR: /home/vscode/.local/share/fnm
+      npm_config_cache: /home/vscode/.cache/node/npm
+      COREPACK_HOME: /home/vscode/.cache/node/corepack
+      # Download the package manager pinned in package.json ("packageManager") without asking
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    volumes:
+      # Shared across projects, like uv's Python versions: Node versions (fnm) and the npm cache,
+      # corepack's package managers and the pnpm store
+      - node-fnm:/home/vscode/.local/share/fnm
+      - node-cache:/home/vscode/.cache/node
+
+volumes:
+  node-fnm:
+    # Shared across projects; created by init-host.sh
+    name: ${RESOURCE_PREFIX:-agent-sandbox}-node-fnm
+    external: true
+  node-cache:
+    name: ${RESOURCE_PREFIX:-agent-sandbox}-node-cache
+    external: true

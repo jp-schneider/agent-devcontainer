@@ -29,7 +29,7 @@ teardown() {
     teardown_workdir
 }
 
-# init <variant> [<toolchain>]
+# init <variant> [<toolchain>...]
 init() {
     cd "$WS"
     run "$BASH_UNDER_TEST" .devcontainer/shared/initialize.sh "$@"
@@ -80,6 +80,13 @@ apt_list() {
     not_grep 'volume create' "$WORK/docker.log"
 }
 
+@test "template-dev variant: project + its dev packages, no toolchain" {
+    init template-dev
+    [ "$status" -eq 0 ]
+    [ "$(apt_list)" = "ffmpeg libsm6 libxext6 cmake=3.28.3-1build7 shellcheck python3-yaml " ]
+    not_grep '^UV_' "$WS/.devcontainer/shared/.env"
+}
+
 @test ".env: only DEVCONTAINER_* lines reach compose, unchanged; can't override generated keys" {
     printf '# host config\nDATA_PATH=/home/me/data\nAPI_SECRET=s3cr3t\nDEVCONTAINER_DATA_PATH=/mnt/storage/data\nDEVCONTAINER_LOCAL_WORKSPACE_FOLDER=/evil\n' \
         > "$WS/.env"
@@ -109,4 +116,40 @@ apt_list() {
     init python-uv-gpu uv
     [ "$status" -ne 0 ]
     output_has "ABORT"
+}
+
+@test "toolchains: list and resource prefix in shared/.env; mountpoints.txt always written" {
+    init python-uv-gpu uv
+    E="$WS/.devcontainer/shared/.env"
+    grep -qx 'TOOLCHAINS="uv"' "$E"
+    grep -qx 'RESOURCE_PREFIX=agent-sandbox' "$E"
+    [ -f "$GEN/mountpoints.txt" ]
+    [ ! -s "$GEN/mountpoints.txt" ]
+    init base
+    grep -qx 'TOOLCHAINS=""' "$E"
+    [ -f "$GEN/mountpoints.txt" ]
+}
+
+@test "toolchains: several run their init-host.sh in the given order" {
+    echo '{}' > "$WS/package.json"
+    init python-uv-cpu uv node
+    [ "$status" -eq 0 ]
+    grep -qx 'TOOLCHAINS="uv node"' "$WS/.devcontainer/shared/.env"
+    grep -q '^UV_PROJECT_ENVIRONMENT=' "$WS/.devcontainer/shared/.env"
+    [ "$(grep 'volume create' "$WORK/docker.log" | cut -d' ' -f4 | tr '\n' ' ')" \
+        = "claude-code-uv-python-versions agent-sandbox-node-fnm agent-sandbox-node-cache " ]
+    grep -qx '/app/node_modules' "$GEN/mountpoints.txt"
+    [ -f "$GEN/compose.node.yml" ]
+}
+
+@test "toolchains: warns when a toolchain's compose.yml is not in the variant's compose list" {
+    init python-uv-cpu uv node
+    output_has "WARNING toolchain node: shared/toolchains/node/compose.yml is not in the dockerComposeFile list of python-uv-cpu"
+    case "$output" in *"WARNING toolchain uv"*) false ;; esac
+}
+
+@test "toolchains: an unknown toolchain aborts" {
+    init python-uv-cpu uv nodee
+    [ "$status" -ne 0 ]
+    output_has "unknown toolchain 'nodee'"
 }

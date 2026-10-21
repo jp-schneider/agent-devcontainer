@@ -4,8 +4,9 @@ FROM ${BASE_IMAGE}
 
 ARG IMAGE_NAME=claude-code-devcontainer
 ARG IMAGE_VERSION=ubuntu24.04
-# Toolchain under toolchains/<name>/ (set by the toolchain's compose overlay); "none" = core only
-ARG TOOLCHAIN=none
+# Toolchains under toolchains/<name>/, space-separated, in order (initialize.sh <variant> <toolchain>...,
+# passed by compose.core.yml); empty = core only
+ARG TOOLCHAINS=""
 
 LABEL org.opencontainers.image.title="$IMAGE_NAME" \
       org.opencontainers.image.version="$IMAGE_VERSION" \
@@ -40,12 +41,17 @@ RUN if [[ "$DOCKER_CLI" == 1 ]]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Toolchain-specific system packages (toolchains/<name>/apt-packages.txt, one per line, # comments allowed)
+# Toolchain-specific system packages (toolchains/<name>/apt-packages.txt of every toolchain, # comments
+# allowed), in one apt-get call
 COPY shared/toolchains/ /opt/devcontainer/toolchains/
-RUN pkgs_file="/opt/devcontainer/toolchains/${TOOLCHAIN}/apt-packages.txt"; \
-    if [[ -f "$pkgs_file" ]]; then \
+RUN pkgs=""; \
+    for t in $TOOLCHAINS; do \
+        pkgs_file="/opt/devcontainer/toolchains/$t/apt-packages.txt"; \
+        if [[ -f "$pkgs_file" ]]; then pkgs="$pkgs $(sed 's/#.*//' "$pkgs_file")"; fi; \
+    done; \
+    if [[ -n "${pkgs//[[:space:]]/}" ]]; then \
         apt-get update \
-        && sed 's/#.*//' "$pkgs_file" | xargs apt-get install -y --no-install-recommends \
+        && xargs apt-get install -y --no-install-recommends <<< "$pkgs" \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -118,12 +124,24 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 
 RUN mkdir -p /home/vscode/.claude && chown -R vscode:vscode /home/vscode/.claude
 
-# Toolchain user-level setup (toolchains/<name>/install.sh, runs as $USERNAME)
-RUN install_sh="/opt/devcontainer/toolchains/${TOOLCHAIN}/install.sh"; \
-    if [[ -f "$install_sh" ]]; then bash "$install_sh"; fi
+# Toolchain user-level setup (toolchains/<name>/install.sh of every toolchain, in order, as $USERNAME)
+RUN for t in $TOOLCHAINS; do \
+        install_sh="/opt/devcontainer/toolchains/$t/install.sh"; \
+        if [[ -f "$install_sh" ]]; then bash "$install_sh" || exit 1; fi; \
+    done
 
 # claude-local: Claude Code against a local LM Studio server (opt-in overlays compose.lmstudio-*.yml)
 COPY --chmod=755 shared/bin/claude-local /usr/local/bin/claude-local
+
+# Mount points of named volumes under /app (.generated/mountpoints.txt, written by initialize.sh and the
+# toolchains' init-host.sh, e.g. node_modules). A fresh named volume takes the ownership of the image
+# directory it is mounted on, so creating them here as $USERNAME keeps those volumes user-owned (there
+# is no root at runtime to chown them). Last, because the list changes with the project layout.
+COPY .generated/mountpoints.txt /opt/devcontainer/mountpoints.txt
+RUN while IFS= read -r d; do \
+        [[ -n "$d" ]] || continue; \
+        case "$d" in /app/*) mkdir -p "$d" ;; *) echo "mountpoints.txt: not under /app: $d" >&2; exit 1 ;; esac; \
+    done < /opt/devcontainer/mountpoints.txt
 
 WORKDIR /app
 

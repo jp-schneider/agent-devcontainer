@@ -3,6 +3,8 @@
 ## Devcontainer template
 
 ### Active
+- [`template-dev` variant](plans/2026-10-20-13-01-template-dev-variant.md): template-only variant for developing the template (shellcheck, Python 3 + PyYAML, bats/shellcheck extensions; bats via `tests/run.sh`); removed by cleanup, in `own_paths`
+- [Node toolchain + multiple toolchains per variant](plans/2026-10-20-12-52-node-toolchain.md): `initialize.sh <variant> uv node`, `TOOLCHAINS` build arg; fnm (per-project Node), npm/pnpm via corepack; a named volume per `node_modules`; `agent-sandbox-` prefix for new resources
 - [Local models via LM Studio](plans/2026-10-19-13-07-lmstudio-fallback.md): opt-in overlays (host llmster default, sidecar container), `claude-local` wrapper pointing Claude Code at LM Studio's Anthropic-compatible API
 - [Adopt the template in an existing repo](plans/2026-10-10-19-36-adopt-template-in-existing-repo.md): `update-from-template.sh --adopt`; moves an old `.devcontainer/` to `.devcontainer.legacy/`, seeds missing files, `.gitignore` union
 - [Tests in the repo (bats) + CI](plans/2026-10-10-19-09-bats-tests-and-ci.md): bats-core suites in tests/, pinned dev dependency, GitHub Actions (Ubuntu + macOS bash 3.2), shellcheck

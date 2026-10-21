@@ -8,3 +8,6 @@ CLAUDE.local.md
 # trailing slash: git treats a symlink as a file, so ".venv-*.ct/" would not match)
 .venv
 .venv-*.ct
+# node toolchain: per-package node_modules (in the container, a named volume mounted there; on the
+# host, an empty mount point created by toolchains/node/init-host.sh)
+node_modules/

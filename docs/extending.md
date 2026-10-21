@@ -9,9 +9,12 @@
      the template overlays, then
      `../.generated/compose.host.yml`, and **`../.generated/compose.protect.yml` last**. Otherwise
      a later file could override a protected mount.
-   - `initializeCommand`: `["bash", ".devcontainer/shared/initialize.sh", "<variant>", "<toolchain>"]`.
-     The variant name must match the folder; `resolve-config.sh` reads the compose list from it.
-   - `postStartCommand`: call the toolchain's `post-start.sh` if it has one. Keep the socket cleanup.
+   - `initializeCommand`: `["bash", ".devcontainer/shared/initialize.sh", "<variant>", "<toolchain>", …]`,
+     zero or more toolchains in install order. The variant name must match the folder;
+     `resolve-config.sh` reads the compose list from it. List each toolchain's `compose.yml` (and
+     any overlay it generates, e.g. `../.generated/compose.node.yml`) before `compose.project.yml`.
+   - `postStartCommand`: starts with `bash /app/.devcontainer/shared/post-start.sh;` (runs the
+     toolchains' `post-start.sh`). Keep the socket cleanup.
    - `customizations.vscode.extensions`: stack-specific extensions.
 3. **Keep `remoteEnv` and the VS Code security settings identical to the other variants.**
    devcontainer.json has no include mechanism, so these are duplicated
@@ -27,32 +30,36 @@ Create `.devcontainer/shared/toolchains/<name>/`. Every file is optional:
 | File | Runs | Notes |
 |---|---|---|
 | `apt-packages.txt` | build, root | Whitespace-separated packages, `#` comments |
-| `install.sh` | build, container user | Create volume mount points here, so fresh volumes are user-owned |
-| `init-host.sh <env-file>` | host, before start | Append env vars; `docker volume create` shared volumes. **bash 3.2** |
-| `post-start.sh` | container start | Must be idempotent |
-| `compose.yml` | — | Must set `build.args.TOOLCHAIN: <name>`; add volumes |
+| `install.sh` | build, container user | Create volume mount points under `$HOME` here, so fresh volumes are user-owned |
+| `init-host.sh <env-file>` | host, before start | Append env vars; `docker volume create` shared volumes; mount points under `/app` go to `.generated/mountpoints.txt`. **bash 3.2** |
+| `post-start.sh` | container start, via `shared/post-start.sh` | Must be idempotent; a failure is reported, not fatal |
+| `compose.yml` | — | Volumes and environment. The toolchain list comes from `initializeCommand`, not from here |
 
 Checklist:
-- **Volumes:** per-worktree volumes are named `claude-code-${WORKTREE_NAME:-project}-<what>`.
-  Volumes shared across projects are `external: true` and created in `init-host.sh`. Compose
-  would otherwise label them with whichever project created them first.
+- **Volumes:** new volumes are named `${RESOURCE_PREFIX:-agent-sandbox}-…`:
+  per worktree `…-${WORKTREE_NAME:-project}-<what>`, shared `…-<toolchain>-<what>`. Existing
+  `claude-code-…` volumes keep their names. Volumes shared across projects are `external: true` and
+  created in `init-host.sh`. Compose would otherwise label them with whichever project created
+  them first.
+- **Volumes under `/app`** (mounted over the bind mount): append the target to
+  `.devcontainer/.generated/mountpoints.txt` in `init-host.sh` and create the host directory, so
+  both the image's and the host's mount point are user-owned (see
+  [architecture.md](architecture.md#image-build)).
 - **Toolchain-specific state:** don't put it in core; core must stay toolchain-agnostic.
 - **apt packages:** only what the toolchain itself needs. Project-specific packages (OpenCV,
   CUDA extensions, …) belong in the project's `.devcontainer/apt-packages.txt`.
 - **Environment variables:** `init-host.sh` writes them to `shared/.env`, which is **not** passed
   into the container. Pass the ones the container needs explicitly in the toolchain's `compose.yml`
   (`environment: {VAR: ${VAR}}`).
-- **Only one toolchain per variant:** a later overlay's `TOOLCHAIN` arg would override the
-  earlier one. Combining toolchains (e.g. uv + node) needs a combined toolchain folder or a
-  change to the Dockerfile.
+- **Combinable:** a toolchain must work next to others (e.g. uv + node). Don't assume it is
+  alone in `.bashrc`, `PATH` or apt; `install.sh` runs after those of earlier toolchains.
 
 Notes for planned toolchains:
 - **conda:** Miniforge (conda-forge), **not** Anaconda's `defaults` channel (commercial terms).
   Persist `CONDA_ENVS_PATH` and `CONDA_PKGS_DIRS` in volumes.
 - **pyenv + poetry:** persist `$PYENV_ROOT/versions`. Set `POETRY_VIRTUALENVS_PATH` to a volume;
   no symlinks are needed.
-- **node:** a `node_modules` volume and Playwright browsers (`~/.cache/ms-playwright`). The
-  polling env vars in core (`WATCHPACK_POLLING`, `CHOKIDAR_USEPOLLING`) are already there.
+- **Playwright** (with node): persist browsers (`~/.cache/ms-playwright`) in a shared volume.
 
 ## Add an overlay
 
