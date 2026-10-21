@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-21
+
 First public version.
 
 ### Added
