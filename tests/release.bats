@@ -94,10 +94,12 @@ untouched() {
 }
 
 @test "release: the repo's own CHANGELOG is in a releasable format" {
-    cp "$REPO_ROOT/CHANGELOG.md" "$R/CHANGELOG.md"
+    # Format only: right after a release [Unreleased] is empty, so add an entry to the copy first
+    awk '{ print } /^## \[Unreleased\]/ { print ""; print "- format check entry" }' \
+        "$REPO_ROOT/CHANGELOG.md" > "$R/CHANGELOG.md"
     prepare 99.0.0 2026-10-21
     [ "$status" -eq 0 ]
-    [ -n "$output" ]
+    [ "$(printf '%s\n' "$output" | head -n 1)" = "- format check entry" ]
     grep -qx '## \[99.0.0\] - 2026-10-21' "$R/CHANGELOG.md"
 }
 
