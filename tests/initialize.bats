@@ -56,6 +56,14 @@ apt_list() {
     [ "$(apt_list)" = "ffmpeg libsm6 libxext6 cmake=3.28.3-1build7 cpu-only-pkg " ]
 }
 
+@test "apt list: the shipped project list (comments only) adds no packages" {
+    cp "$REPO_ROOT/.devcontainer/apt-packages.txt" "$WS/.devcontainer/apt-packages.txt"
+    rm -f "$WS/.devcontainer/python-uv-gpu/apt-packages.txt"
+    init python-uv-gpu uv
+    [ "$status" -eq 0 ]
+    [ ! -s "$GEN/apt-packages.txt" ]
+}
+
 @test "apt list: empty file when there are no lists (Dockerfile COPY still works)" {
     rm -f "$WS/.devcontainer/apt-packages.txt" "$WS/.devcontainer/python-uv-gpu/apt-packages.txt"
     init python-uv-gpu uv

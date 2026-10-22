@@ -30,6 +30,13 @@ cp "$files/CLAUDE.md" CLAUDE.md
 # The template's license covers the files it ships; the root LICENSE is left to the project
 [ ! -f LICENSE ] || mv LICENSE .devcontainer/LICENSE
 
+# The template's own workflows (guarded, they never run here). A GITHUB_TOKEN push may not change
+# .github/workflows/, so in GitHub Actions they stay and the workflow asks the user to delete them;
+# run by hand, the user's own push may, so delete them now.
+if [ "${GITHUB_ACTIONS:-}" != true ]; then
+    rm -f .github/workflows/tests.yml .github/workflows/template-cleanup.yml
+fi
+
 # README stub: project name plus a random joke
 n_jokes=$(grep -c . "$files/jokes.txt")
 joke=$(grep . "$files/jokes.txt" | sed -n "$(( RANDOM % n_jokes + 1 ))p")

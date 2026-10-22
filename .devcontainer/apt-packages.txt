@@ -1,0 +1,8 @@
+# Project apt packages, installed at image build in every variant (variant-specific ones go in
+# .devcontainer/<variant>/apt-packages.txt). Yours to edit; template updates leave this file alone.
+# Whitespace-separated, "#" comments, optional version pins (pkg=version).
+# Read-only to the agent; rebuild after changes. See CUSTOMIZING.md.
+#
+# Example:
+# build-essential cmake
+# postgresql-client=16+257build1

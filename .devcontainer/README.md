@@ -72,12 +72,18 @@ Pick your path: **A** if you're starting a new repository, **B** if you already 
      ```bash
      bash .github/template-cleanup/cleanup.sh
      ```
-     The workflow file stays behind as a no-op.
+     Run by hand, it also removes the template's workflow files (step 4).
 3. Clone the repository and open the folder in VS Code.
-4. Run **"Dev Containers: Reopen in Container"** (command palette, `F1`) and pick a
+4. Delete the template's workflow files. The workflow isn't allowed to (they never run in your
+   repo; its run summary shows the same command):
+   ```bash
+   git rm .github/workflows/tests.yml .github/workflows/template-cleanup.yml
+   git commit -m "Remove template workflows" && git push
+   ```
+5. Run **"Dev Containers: Reopen in Container"** (command palette, `F1`) and pick a
    [variant](#choosing-a-variant). The first build takes several minutes.
-5. Optional: delete the variant folders you don't need (on the host), so VS Code stops asking.
-6. Open a terminal in VS Code and run `claude`.
+6. Optional: delete the variant folders you don't need (on the host), so VS Code stops asking.
+7. Open a terminal in VS Code and run `claude`.
 
 Continue with [Check that it works](#check-that-it-works).
 
@@ -118,7 +124,7 @@ On top of a normal [update](#updating-from-the-template), `--adopt`:
 - **moves your previous devcontainer config** (everything tracked under `.devcontainer/`, and a root
   `.devcontainer.json`) to `.devcontainer.legacy/`. VS Code doesn't look there;
 - **adds missing files** from the template, never overwriting yours: `.devcontainer/compose.project.yml`
-  (every variant needs it), `.claude/settings.json` (deny rules), and a generic `CLAUDE.md`,
+  (every variant needs it), `.devcontainer/apt-packages.txt` (empty), `.claude/settings.json` (deny rules), and a generic `CLAUDE.md`,
   `.claude/overview.md`, `.claude/memory/MEMORY.md`. Files your `.gitignore` ignores are skipped;
 - **lists tracked files that are now ignored**;
 - refuses to run if the repo already has the template (`.devcontainer/VERSION`) or

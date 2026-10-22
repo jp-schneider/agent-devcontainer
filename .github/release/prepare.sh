@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Prepares a release in the working tree: sets .devcontainer/VERSION, turns the CHANGELOG's
 # [Unreleased] section into [<version>] - <date> with a fresh empty [Unreleased] above it, and
-# prints that section's body (the release notes) to stdout. Touches no git state:
-# .github/workflows/release.yml commits, tags and publishes.
+# prints that section's body (the release notes) to stdout. Touches no git state: the maintainer
+# commits it in a release PR, then tags and publishes (CONTRIBUTING.md, "Releases").
 # Run from the repo root. Bash 3.2 compatible.
 #
 # Usage: .github/release/prepare.sh <X.Y.Z> [<YYYY-MM-DD>]   (default date: today, UTC)

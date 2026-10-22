@@ -23,6 +23,8 @@ template-only files are removed afterwards by a workflow.
   link to `.devcontainer/README.md`.
 - Moves `LICENSE` to `.devcontainer/LICENSE`: the template's license covers the files it ships,
   and the root is left for the project's own license.
+- Run by hand (outside GitHub Actions, `GITHUB_ACTIONS` unset): also deletes the template's
+  workflows `tests.yml` and `template-cleanup.yml`. In GitHub Actions it leaves them (see below).
 - Deletes `.github/template-cleanup/` itself. This directory is the "not yet cleaned" marker.
 
 **Triggers and guards:**
@@ -43,8 +45,10 @@ template-only files are removed afterwards by a workflow.
 **Permissions and limits:**
 - `contents: write`. If an org or repo restricts `GITHUB_TOKEN` to read-only, the push fails, and
   the user runs `bash .github/template-cleanup/cleanup.sh` by hand.
-- The workflow file stays in derived repos. *Belief, unverified:* a `GITHUB_TOKEN` push cannot
-  modify `.github/workflows/`, so the workflow cannot delete itself.
+- The template's workflow files stay in derived repos: a `GITHUB_TOKEN` push cannot modify
+  `.github/workflows/` (it would be rejected without the `workflows` permission). They are guarded
+  and never run there. The workflow's run summary and a notice give the user the `git rm` command;
+  the README quick start and `.devcontainer/README.md` list it as a step.
 - No third-party actions; `actions/checkout` is pinned by SHA (v6.1.0).
 
 ## 3. Pulling template updates
@@ -60,7 +64,7 @@ derived repo:
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update). Stops if the merge didn't start (no `MERGE_HEAD`).
 4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
-   .devcontainer/compose.project.yml LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
+   .devcontainer/compose.project.yml .devcontainer/apt-packages.txt LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
    .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
    .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release
    .devcontainer/template-dev`):
@@ -96,6 +100,7 @@ template. Same steps as above, plus:
   `.devcontainer/*/devcontainer.json` and would list it as a (broken) variant.
 - **Seeding**, only where missing (tracked or on disk) and not ignored:
   `.devcontainer/compose.project.yml` (repo-owned, so otherwise dropped, but every variant lists it),
+  `.devcontainer/apt-packages.txt` (repo-owned, empty),
   `.claude/settings.json` (dropped when the repo already has a `.claude/`), and `CLAUDE.md`,
   `.claude/overview.md`, `.claude/memory/MEMORY.md` from `.github/template-cleanup/files/`. This is
   what "Use this template" plus the cleanup would have provided.

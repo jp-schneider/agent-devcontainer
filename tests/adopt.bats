@@ -106,16 +106,17 @@ teardown_file() {
     [ "$(cat "$S/.devcontainer/VERSION")" = "0.1.0" ]
 }
 
-@test "adopt: missing files seeded from the template (compose.project.yml, deny rules, CLAUDE.md, .claude/ skeleton)" {
+@test "adopt: missing files seeded from the template (compose.project.yml, apt list, deny rules, CLAUDE.md, .claude/ skeleton)" {
     S="$WORK/after-adopt"
     F="$TMPL/.github/template-cleanup/files"
     cmp -s "$S/.devcontainer/compose.project.yml" "$TMPL/.devcontainer/compose.project.yml"
+    cmp -s "$S/.devcontainer/apt-packages.txt" "$TMPL/.devcontainer/apt-packages.txt"
     cmp -s "$S/.claude/settings.json" "$TMPL/.claude/settings.json"
     cmp -s "$S/CLAUDE.md" "$F/CLAUDE.md"
     cmp -s "$S/.claude/overview.md" "$F/overview.md"
     cmp -s "$S/.claude/memory/MEMORY.md" "$F/MEMORY.md"
     git -C "$TMPL" show v0.1.0:LICENSE | cmp -s "$S/.devcontainer/LICENSE" -
-    for p in .devcontainer/compose.project.yml .claude/settings.json CLAUDE.md .devcontainer/LICENSE; do
+    for p in .devcontainer/compose.project.yml .devcontainer/apt-packages.txt .claude/settings.json CLAUDE.md .devcontainer/LICENSE; do
         grep -qx "$p" "$WORK/after-adopt.staged" || { echo "not staged: $p" >&2; return 1; }
     done
 }
