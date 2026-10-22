@@ -24,6 +24,8 @@ setup_file() {
 
     # Template v0.1.0: the current repo's would-be content
     copy_repo "$TMPL"
+    # The fixture's own version, so tag and VERSION agree whatever the repo's real version is
+    echo "0.1.0" > "$TMPL/.devcontainer/VERSION"
     git -c init.defaultBranch=main -C "$TMPL" init -q
     git -C "$TMPL" add -A
     git -C "$TMPL" commit -q -m "template v1"
