@@ -47,3 +47,16 @@ jobs:
           git add -A
           git commit -m "Clean up template files"
           git push
+          # The bot may not delete workflow files: ask the user to (the template's are inert here)
+          rm_cmd='git pull && git rm .github/workflows/tests.yml .github/workflows/template-cleanup.yml && git commit -m "Remove template workflows" && git push'
+          echo "::notice title=Template cleanup done::Delete the template's workflow files yourself: $rm_cmd"
+          {
+            echo "### Template cleanup done"
+            echo
+            echo "One step is left that this workflow isn't allowed to do: delete the template's own"
+            echo "workflow files (they never run in this repo). In your clone:"
+            echo
+            echo '```bash'
+            echo "$rm_cmd"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -45,7 +45,7 @@ List them in an apt package file, then rebuild:
 
 | File | Applies to |
 |---|---|
-| `.devcontainer/apt-packages.txt` | all variants (create it if you need it) |
+| `.devcontainer/apt-packages.txt` | all variants (ships empty, with the format in its header; template updates leave it alone) |
 | `.devcontainer/<variant>/apt-packages.txt` | one variant (the Python variants ship the OpenCV runtime here) |
 
 ```

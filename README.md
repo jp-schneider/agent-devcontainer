@@ -32,10 +32,13 @@ agents with more access than they intend, and because it will get better with mo
 
 1. Click **"Use this template"** on GitHub. A workflow then resets this README, `CLAUDE.md` and
    `.claude/` in your new repo and removes `docs/`.
-2. Clone it and open it in VS Code with the
+2. Clone it and optionally delete the template's workflow files, which the cleanup bot isn't allowed to
+   remove (due to github restrictions). The workflow files will never run in your repo:
+   `git rm .github/workflows/tests.yml .github/workflows/template-cleanup.yml`, commit, push.
+3. Open it in VS Code with the
    [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
    extension, then choose **"Reopen in Container"** and pick a variant.
-3. Read [.devcontainer/README.md](.devcontainer/README.md) (getting started, everyday use) and
+4. Read [.devcontainer/README.md](.devcontainer/README.md) (getting started, everyday use) and
    [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) (extensions, packages, mounts, FAQ).
 
 **Existing repository?** Follow

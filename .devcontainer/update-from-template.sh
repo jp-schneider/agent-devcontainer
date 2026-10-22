@@ -8,7 +8,8 @@
 #   <ref>:   a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
 #   --adopt: first merge into a repo not created from the template. Moves its existing
 #            .devcontainer/ (and .devcontainer.json) to .devcontainer.legacy/ and seeds missing
-#            files (compose.project.yml, .claude/settings.json, CLAUDE.md, .claude/ skeleton).
+#            files (compose.project.yml, apt-packages.txt, .claude/settings.json, CLAUDE.md,
+#            .claude/ skeleton).
 set -euo pipefail
 
 adopt=""
@@ -19,7 +20,7 @@ fi
 ref="${1:-}"
 url="${2:-https://github.com/jp-schneider/agent-devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
-own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml
+own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml .devcontainer/apt-packages.txt
 LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
 .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev"
 legacy=".devcontainer.legacy"
@@ -160,6 +161,7 @@ if [ -n "$adopt" ]; then
 "
     done << EOF
 .devcontainer/compose.project.yml .devcontainer/compose.project.yml
+.devcontainer/apt-packages.txt .devcontainer/apt-packages.txt
 .claude/settings.json .claude/settings.json
 CLAUDE.md .github/template-cleanup/files/CLAUDE.md
 .claude/overview.md .github/template-cleanup/files/overview.md

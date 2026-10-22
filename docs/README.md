@@ -30,7 +30,7 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
 ├── compose.project.yml          project compose file: mounts, services, resources (project-owned)
-├── apt-packages.txt             optional: project apt packages (all variants)
+├── apt-packages.txt             project apt packages, all variants (project-owned, ships empty)
 ├── <variant>/apt-packages.txt   variant apt packages (Python variants: OpenCV runtime by default)
 ├── .dockerignore                build context = .devcontainer/; only Dockerfile, toolchains, apt list
 └── shared/

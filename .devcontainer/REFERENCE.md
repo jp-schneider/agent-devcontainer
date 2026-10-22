@@ -119,7 +119,8 @@ is gitignored. `initialize.sh` is bash 3.2 compatible (macOS). Supported hosts: 
 
 ## System packages
 
-Project apt packages go in `.devcontainer/apt-packages.txt` (all variants) and/or
+Project apt packages go in `.devcontainer/apt-packages.txt` (all variants; ships empty and is
+yours, template updates leave it alone) and/or
 `.devcontainer/<variant>/apt-packages.txt` (one variant). The Python variants
 ship a variant file with the **OpenCV runtime** (`ffmpeg libgl1 libglib2.0-0 libsm6 libxext6`);
 edit or remove it for your project. Format: whitespace-separated, `#`

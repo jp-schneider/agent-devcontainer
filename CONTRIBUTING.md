@@ -88,19 +88,28 @@ These are easy to break by accident and matter for security:
 Versions follow [SemVer](https://semver.org/); while at 0.x, a minor version may break things,
 with migration notes in the changelog.
 
-**With the workflow:** Actions → **Release** → *Run workflow* on `main`, enter `x.y.z`. It runs
-the tests, then [.github/release/prepare.sh](.github/release/prepare.sh) (sets
-`.devcontainer/VERSION`, turns **[Unreleased]** into `## [x.y.z] - YYYY-MM-DD` under a new empty
-**[Unreleased]**), commits, tags `vx.y.z`, pushes both atomically and creates the GitHub release
-with the changelog section as notes. It refuses an existing version or an empty **[Unreleased]**.
-If branch protection blocks `GITHUB_TOKEN` pushes to `main`, allow github-actions to bypass it,
-or release by hand.
+A release goes through a pull request like any other change, so it passes the same checks:
 
-**By hand** (same result):
-1. `bash .github/release/prepare.sh x.y.z > notes.md`
-2. `git commit -am "Release vx.y.z"`, `git tag -a vx.y.z -m "vx.y.z"`,
-   `git push --atomic origin main vx.y.z`
-3. `gh release create vx.y.z --verify-tag --title vx.y.z --notes-file notes.md`
+1. **Release PR.** On a branch from `main`:
+   ```bash
+   bash .github/release/prepare.sh x.y.z > ../notes-vx.y.z.md   # keep the notes outside the repo
+   git commit -am "Release vx.y.z"
+   git push -u origin HEAD && gh pr create --title "Release vx.y.z" --body "See CHANGELOG.md."
+   ```
+   [prepare.sh](.github/release/prepare.sh) sets `.devcontainer/VERSION` and turns **[Unreleased]**
+   into `## [x.y.z] - YYYY-MM-DD` under a new empty **[Unreleased]**. It refuses an existing
+   version or an empty **[Unreleased]**.
+2. **Merge** once CI is green (squash).
+3. **Tag the merged commit and publish** (after the merge: a squash merge doesn't keep the
+   branch's commit):
+   ```bash
+   git switch main && git pull
+   git tag -a vx.y.z -m "vx.y.z" && git push origin vx.y.z
+   gh release create vx.y.z --verify-tag --title vx.y.z --notes-file ../notes-vx.y.z.md
+   ```
+
+There is no release workflow on purpose: a workflow can't push the release commit to a `main`
+that requires pull requests (`GITHUB_TOKEN` can't be exempted from rulesets).
 
 Derived repos update with `.devcontainer/update-from-template.sh`, which defaults to the latest
 release tag.

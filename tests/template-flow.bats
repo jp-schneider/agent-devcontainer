@@ -33,7 +33,8 @@ setup_file() {
     git -c init.defaultBranch=main -C "$DER" init -q
     git -C "$DER" add -A
     git -C "$DER" commit -q -m "Initial commit"
-    (cd "$DER" && "$BASH_UNDER_TEST" .github/template-cleanup/cleanup.sh > "$WORK/cleanup.log")
+    # As the cleanup workflow runs it (CI sets GITHUB_ACTIONS too; the by-hand run is its own test)
+    (cd "$DER" && GITHUB_ACTIONS=true "$BASH_UNDER_TEST" .github/template-cleanup/cleanup.sh > "$WORK/cleanup.log")
     git -C "$DER" add -A
     git -C "$DER" commit -q -m "Clean up template files"
     snapshot after-cleanup
@@ -46,6 +47,7 @@ setup_file() {
     echo "our own license" > "$DER/LICENSE"
     echo "our own notes" > "$DER/docs/notes.md"
     echo "# our project mounts" >> "$DER/.devcontainer/compose.project.yml"
+    echo "our-pkg" >> "$DER/.devcontainer/apt-packages.txt"
     git -C "$DER" add -A
     git -C "$DER" commit -q -m "customize"
     echo '{"local": true}' > "$DER/.claude/settings.local.json" # gitignored, must survive
@@ -58,6 +60,7 @@ setup_file() {
     echo "v2 docs change" >> "$TMPL/docs/architecture.md"
     echo "new template page" > "$TMPL/docs/new-page.md"
     echo "# template change to project file" >> "$TMPL/.devcontainer/compose.project.yml"
+    echo "template-pkg" >> "$TMPL/.devcontainer/apt-packages.txt"
     echo "template security policy change" >> "$TMPL/SECURITY.md"
     echo "template license change" >> "$TMPL/LICENSE"
     echo "# new template test" > "$TMPL/tests/new.bats"
@@ -114,10 +117,21 @@ teardown_file() {
 
 @test "cleanup: workflow files stay (a GITHUB_TOKEN push can't delete them), .devcontainer untouched" {
     [ -f "$WORK/after-cleanup/.github/workflows/template-cleanup.yml" ]
+    [ -f "$WORK/after-cleanup/.github/workflows/tests.yml" ]
     # The template moved on since; compare with its v0.1.0 tree (minus the template-only variant)
     git -C "$WORK/template" archive v0.1.0 .devcontainer | (mkdir -p "$WORK/v010" && cd "$WORK/v010" && tar -xf -)
     [ -d "$WORK/v010/.devcontainer/template-dev" ]
     diff -rq -x template-dev -x LICENSE "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
+}
+
+@test "cleanup by hand (outside GitHub Actions): also removes the template's workflow files" {
+    H="$WORK/by-hand"
+    mkdir -p "$H"
+    git -C "$WORK/template" archive v0.1.0 | tar -x -C "$H"
+    (cd "$H" && env -u GITHUB_ACTIONS "$BASH_UNDER_TEST" .github/template-cleanup/cleanup.sh myproj > /dev/null)
+    [ ! -e "$H/.github/workflows/tests.yml" ]
+    [ ! -e "$H/.github/workflows/template-cleanup.yml" ]
+    [ ! -e "$H/.github/template-cleanup" ]
 }
 
 @test "cleanup: the template's LICENSE moves to .devcontainer/, the root is left to the project" {
@@ -137,6 +151,7 @@ teardown_file() {
     tail -n 1 "$S/CLAUDE.md" | grep -q 'be nice'
     tail -n 1 "$S/README.md" | grep -q 'my project'
     tail -n 1 "$S/.devcontainer/compose.project.yml" | grep -q 'our project mounts'
+    [ "$(tail -n 1 "$S/.devcontainer/apt-packages.txt")" = "our-pkg" ]
     [ -f "$S/.claude/plans/own-plan.md" ]
     [ "$(grep '^docs/' "$WORK/after-update1.ls-files")" = "docs/notes.md" ]
     [ "$(ls "$S/docs")" = "notes.md" ]

@@ -9,6 +9,20 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Added
+- **`.devcontainer/apt-packages.txt` ships** (comments only, format in its header), so the project
+  apt list is visible. It is project-owned: template updates leave it alone, `--adopt` adds it.
+  Repos created from 0.1.0 don't get it by updating; create it when you need it.
+
+### Changed
+- **The cleanup asks you to delete the template's workflow files** (`tests.yml`,
+  `template-cleanup.yml`): the workflow isn't allowed to, so its run summary shows the `git rm`
+  command, and the quick start lists it. Run by hand, `cleanup.sh` deletes them itself.
+  Repos created from 0.1.0 can delete them the same way, plus `.github/workflows/release.yml`;
+  none of them runs there.
+- **Template repo only:** releases go through a pull request (see CONTRIBUTING.md); the release
+  workflow is gone, because it can't push to a `main` that requires pull requests.
+
 ## [0.1.0] - 2026-10-21
 
 First public version.
