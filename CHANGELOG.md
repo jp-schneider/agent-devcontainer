@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-22
+
 ### Added
 - **`.devcontainer/apt-packages.txt` ships** (comments only, format in its header), so the project
   apt list is visible. It is project-owned: template updates leave it alone, `--adopt` adds it.
