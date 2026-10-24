@@ -9,6 +9,15 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
+### Changed
+- **Template repo only: releases publish on merge.** A pull request that bumps the version with
+  `.github/release/prepare.sh` releases when merged: `release.yml` checks the bump
+  (`version-to-release.sh`) and creates the tag and the GitHub release from the CHANGELOG section.
+  No manual tag step. Repos created from the template get `release.yml` too (inert there); the
+  cleanup lists it with the other template workflows to delete.
+
 ## [0.1.1] - 2026-10-22
 
 ### Added

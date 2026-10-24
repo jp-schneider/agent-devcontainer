@@ -110,3 +110,102 @@ untouched() {
         return 1
     fi
 }
+
+# --- prepare.sh --notes
+
+@test "notes: prints a dated section's body, changes nothing" {
+    prepare 0.2.0 2026-10-21
+    cp "$R/CHANGELOG.md" "$WORK/CHANGELOG.released"
+    prepare --notes 0.2.0
+    [ "$status" -eq 0 ]
+    [ "$output" = "$(printf '### Added\n- New thing.\n\n### Changed\n- Old thing.')" ]
+    prepare --notes 0.1.0
+    [ "$output" = "$(printf '### Added\n- First.')" ]
+    cmp -s "$R/CHANGELOG.md" "$WORK/CHANGELOG.released"
+}
+
+@test "notes: refuses a missing or undated version, an empty section, a bad version" {
+    prepare --notes 0.3.0
+    [ "$status" -eq 1 ]
+    output_has "no dated section for 0.3.0"
+    # 0.1.1 must not match the section [0.1.10]
+    sed -i.bak 's/^## \[0\.1\.0\]/## [0.1.10]/' "$R/CHANGELOG.md"
+    prepare --notes 0.1.1
+    [ "$status" -eq 1 ]
+    printf '# Changelog\n\n## [Unreleased]\n\n## [0.4.0] - 2026-10-21\n\n## [0.1.0] - 2026-10-01\n' > "$R/CHANGELOG.md"
+    prepare --notes 0.4.0
+    [ "$status" -eq 1 ]
+    output_has "is empty"
+    prepare --notes v0.1.0
+    [ "$status" -eq 1 ]
+}
+
+# --- version-to-release.sh: on a scratch repo with tags, as release.yml runs it after a push
+
+DECIDE="$REPO_ROOT/.github/release/version-to-release.sh"
+
+# released_repo: $G with v0.1.0 tagged, then a commit bumping to 0.2.0 via prepare.sh (the merged
+# release PR); $BEFORE = the commit before it
+released_repo() {
+    G="$WORK/git"
+    new_repo "$G"
+    cp "$WORK/CHANGELOG.orig" "$G/CHANGELOG.md"
+    echo "0.1.0" > "$G/.devcontainer/VERSION"
+    git -C "$G" add -A
+    git -C "$G" commit -q -m "v0.1.0"
+    git -C "$G" tag -a v0.1.0 -m v0.1.0
+    BEFORE="$(git -C "$G" rev-parse HEAD)"
+    (cd "$G" && "$BASH_UNDER_TEST" "$PREPARE" 0.2.0 2026-10-21 > /dev/null)
+    git -C "$G" commit -q -am "Release v0.2.0"
+}
+
+# decide <before>
+decide() {
+    run _decide "$@"
+}
+_decide() {
+    cd "$G" && "$BASH_UNDER_TEST" "$DECIDE" "$@"
+}
+
+@test "decide: a merged version bump releases that version" {
+    released_repo
+    decide "$BEFORE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "0.2.0" ]
+}
+
+@test "decide: unchanged VERSION releases nothing (exit 0, no version)" {
+    released_repo
+    echo "docs" > "$G/f"
+    git -C "$G" commit -q -am "docs only"
+    decide "$(git -C "$G" rev-parse HEAD~1)"
+    [ "$status" -eq 0 ]
+    [ "$(printf '%s\n' "$output" | grep -cx '[0-9.]*')" = "0" ]
+    output_has "nothing to release"
+}
+
+@test "decide: inconsistent bumps fail (existing tag, not greater, no dated section)" {
+    released_repo
+    git -C "$G" tag -a v0.2.0 -m v0.2.0
+    decide "$BEFORE"
+    [ "$status" -eq 1 ]
+    output_has "tag v0.2.0 already exists"
+    git -C "$G" tag -d v0.2.0 > /dev/null
+    git -C "$G" tag -a v0.10.0 -m v0.10.0 # numerically greater than 0.2.0 (not as a string)
+    decide "$BEFORE"
+    [ "$status" -eq 1 ]
+    output_has "not greater than the existing tag v0.10.0"
+    git -C "$G" tag -d v0.10.0 > /dev/null
+    echo "0.3.0" > "$G/.devcontainer/VERSION" # bumped by hand, without prepare.sh
+    git -C "$G" commit -q -am "bump without changelog"
+    decide "$BEFORE"
+    [ "$status" -eq 1 ]
+    output_has "no usable section for 0.3.0"
+}
+
+@test "decide: no previous commit (all-zero before) counts as a change" {
+    released_repo
+    decide 0000000000000000000000000000000000000000
+    [ "$status" -eq 0 ]
+    [ "$output" = "0.2.0" ]
+}

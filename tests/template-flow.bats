@@ -119,6 +119,7 @@ teardown_file() {
 
 @test "cleanup: workflow files stay (a GITHUB_TOKEN push can't delete them), .devcontainer untouched" {
     [ -f "$WORK/after-cleanup/.github/workflows/template-cleanup.yml" ]
+    [ -f "$WORK/after-cleanup/.github/workflows/release.yml" ]
     [ -f "$WORK/after-cleanup/.github/workflows/tests.yml" ]
     # The template moved on since; compare with its v0.1.0 tree (minus the template-only variant)
     git -C "$WORK/template" archive v0.1.0 .devcontainer | (mkdir -p "$WORK/v010" && cd "$WORK/v010" && tar -xf -)
@@ -133,6 +134,7 @@ teardown_file() {
     (cd "$H" && env -u GITHUB_ACTIONS "$BASH_UNDER_TEST" .github/template-cleanup/cleanup.sh myproj > /dev/null)
     [ ! -e "$H/.github/workflows/tests.yml" ]
     [ ! -e "$H/.github/workflows/template-cleanup.yml" ]
+    [ ! -e "$H/.github/workflows/release.yml" ]
     [ ! -e "$H/.github/template-cleanup" ]
 }
 

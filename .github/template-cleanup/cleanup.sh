@@ -34,7 +34,7 @@ cp "$files/CLAUDE.md" CLAUDE.md
 # .github/workflows/, so in GitHub Actions they stay and the workflow asks the user to delete them;
 # run by hand, the user's own push may, so delete them now.
 if [ "${GITHUB_ACTIONS:-}" != true ]; then
-    rm -f .github/workflows/tests.yml .github/workflows/template-cleanup.yml
+    rm -f .github/workflows/tests.yml .github/workflows/release.yml .github/workflows/template-cleanup.yml
 fi
 
 # README stub: project name plus a random joke
