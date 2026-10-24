@@ -245,15 +245,19 @@ link_for() {
     submodule_ws "$WORK/super"
     protect "$B"
     [ "$status" -eq 0 ]
-    for d in inner inner/sub; do
-        g="$M/modules/${d//\//\/modules\/}" # inner/sub -> modules/inner/modules/sub
+    # <dir> <gitdir relative to M>; spelled out, bash 3.2 keeps the backslashes of ${d//\//\/modules\/}
+    while read -r d rg; do
+        g="$M/$rg"
         k="$(link_for "/app/$d/.git")"
         has_mount "ro $k.config -> $g/config"
         [ "$(cat "$k.git")" = "gitdir: $g" ]
         [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir${g#"$M"}/config" ]
         [ "$(git config -f "$k.config" core.worktree)" = "/app/$d" ]
         has_trusted "$B" "$d"
-    done
+    done << 'EOF'
+inner modules/inner
+inner/sub modules/inner/modules/sub
+EOF
 }
 
 @test "submodule workspace: generated files make git work at another worktree path, host config live" {
