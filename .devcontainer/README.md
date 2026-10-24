@@ -250,13 +250,22 @@ Known gaps, roughly by importance:
    command like `cat .env` on the host is not reliably covered.
 8. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
    build time; only the Docker proxy image is pinned by digest.
-9. **Details:**
-   - Single-file read-only mounts keep showing the old version if the host replaces the file
-     (git and Claude write by rename) until the container restarts.
-   - The VS Code IPC socket cleanup loop runs for the first 5 minutes; later sockets rely on the
-     cleared environment variables.
-   - `DEVCONTAINER_EDITABLE_BY_AGENT=1` removes the protection of `.devcontainer/` (template
-     development only).
+9. **Projects are told apart by folder name only.** The compose project, container, Docker
+   network (`<folder>-dev`) and the volumes (Claude config, uv venvs, node_modules) are named after
+   the workspace folder's name, not its path. Two checkouts with the same folder name (`~/a/app` and
+   `~/b/app`, or two submodules both called `app`) share all of them: starting one replaces the
+   other's container, they share the Claude config (including the login) and the venvs, and the
+   sidecars of one (the unauthenticated LM Studio sidecar, the Docker proxy) are reachable from the
+   other. Give every workspace a distinct folder name. Unique names are planned for 0.2.
+   Independently, every container can reach ports published on the host, including those of other
+   projects' containers.
+10. **Details:**
+    - Single-file read-only mounts keep showing the old version if the host replaces the file
+      (git and Claude write by rename) until the container restarts.
+    - The VS Code IPC socket cleanup loop runs for the first 5 minutes; later sockets rely on the
+      cleared environment variables.
+    - `DEVCONTAINER_EDITABLE_BY_AGENT=1` removes the protection of `.devcontainer/` (template
+      development only).
 
 Found another gap, or know how to close one of these? Please contribute; see the
 [template repository](https://github.com/jp-schneider/agent-devcontainer).

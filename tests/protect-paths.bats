@@ -145,8 +145,8 @@ protect() {
 # --- B2: the workspace is a submodule (gitdir in the superproject, relative pointers)
 
 # submodule_ws <superproject-dir> [<nested-path>]: $SUP with the repo $LIB as submodule "proj" (absorbed
-# gitdir), which has a nested submodule (default "inner"); sets SUP, B (the workspace), M (its gitdir),
-# L (generated links)
+# gitdir), which has a nested submodule (default "inner", a clone of $WS, so it has its own submodule
+# "sub"); sets SUP, B (the workspace), M (its gitdir), L (generated links)
 submodule_ws() {
     SUP="$1"
     new_repo "$SUP"
@@ -158,6 +158,21 @@ submodule_ws() {
     M="$SUP/.git/modules/proj"
     L="$B/.devcontainer/.generated/git-links"
     mkdir -p "$B/.devcontainer"
+}
+
+# link_for <container .git target>: $L/<n> of the generated pointer bound there (fails if none). Nested
+# pointers are numbered in find order, which differs between filesystems (APFS vs ext4).
+link_for() {
+    local src
+    src="$(T="$1" awk '{ i = index($0, " -> "); if (substr($0, i + 4) == ENVIRON["T"]) print substr($0, 4, i - 4) }' <<< "$MOUNTS")"
+    src="${src//\$\$/\$}" # compose's $ escape, kept in the parsed YAML
+    case "$src" in
+        "$L"/*.git) printf '%s\n' "${src%.git}" ;;
+        *)
+            printf 'no generated pointer bound to %s (source: %s)\n--- mounts:\n%s\n' "$1" "$src" "$MOUNTS" >&2
+            return 1
+            ;;
+    esac
 }
 
 @test "submodule workspace: pointer and config replaced, gitdir protected at its own path only" {
@@ -183,11 +198,14 @@ submodule_ws() {
     submodule_ws "$WORK/super"
     protect "$B"
     [ "$status" -eq 0 ]
-    has_mount "ro $L/2.git -> /app/inner/.git"
-    has_mount "ro $L/2.config -> $M/modules/inner/config"
-    [ "$(cat "$L/2.git")" = "gitdir: $M/modules/inner" ]
-    [ "$(git config -f "$L/2.config" include.path)" = /opt/host-gitdir/modules/inner/config ]
-    [ "$(git config -f "$L/2.config" core.worktree)" = /app/inner ]
+    for d in inner inner/sub; do
+        g="$M/modules/${d//\//\/modules\/}" # inner/sub -> modules/inner/modules/sub
+        k="$(link_for "/app/$d/.git")"
+        has_mount "ro $k.config -> $g/config"
+        [ "$(cat "$k.git")" = "gitdir: $g" ]
+        [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir${g#"$M"}/config" ]
+        [ "$(git config -f "$k.config" core.worktree)" = "/app/$d" ]
+    done
 }
 
 @test "submodule workspace: generated files make git work at another worktree path, host config live" {
@@ -212,9 +230,10 @@ submodule_ws() {
     protect "$B"
     [ "$status" -eq 0 ]
     [ "$(cat "$L/1.git")" = "gitdir: $M" ]
-    [ "$(cat "$L/2.git")" = "gitdir: $M/modules/$N" ]
-    [ "$(git config -f "$L/2.config" core.worktree)" = "/app/$N" ]
-    [ "$(git config -f "$L/2.config" include.path)" = "/opt/host-gitdir/modules/$N/config" ]
+    k="$(link_for "/app/$N/.git")"
+    [ "$(cat "$k.git")" = "gitdir: $M/modules/$N" ]
+    [ "$(git config -f "$k.config" core.worktree)" = "/app/$N" ]
+    [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir/modules/$N/config" ]
 }
 
 @test "main worktree: no relinked files, no gitdir view" {

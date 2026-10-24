@@ -11,6 +11,13 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [0.1.3] - 2026-10-24
 
+### Security
+- **Documented: projects are told apart by folder name only.** Two checkouts with the same folder
+  name share the compose project, container, network and volumes (Claude config with login,
+  venvs), and reach each other's sidecars. New entry in
+  [Known limitations](.devcontainer/README.md#known-limitations); unique names are planned for 0.2.
+
+
 ### Fixed
 - **Workspace that is itself a submodule:** git works in the container. Before, the mount pointed
   to a non-existent `<super>/.git/modules/.git` and the relative `.git` pointer didn't resolve from
