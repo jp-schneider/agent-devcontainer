@@ -93,7 +93,8 @@ This adds the template to a repository that wasn't created from it. Your old dev
 if any, is moved aside, not deleted.
 
 1. On your machine (not inside a container), go to the repository root. Commit or stash your
-   changes first; the script needs a clean working tree and at least one commit.
+   changes first; the script needs a clean working tree (changes inside submodules are fine) and
+   at least one commit.
 2. Fetch the template and extract the setup script:
    ```bash
    git remote add template https://github.com/jp-schneider/agent-devcontainer.git
@@ -202,7 +203,10 @@ bash .devcontainer/update-from-template.sh v0.2.0    # a specific release (or a 
 The script prints the version change (e.g. `0.1.0 -> 0.2.0`). `.devcontainer/VERSION` always
 takes the template's value.
 - **Merge behaviour:** it merges `template/main` without committing, keeps this repo's own
-  `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files.
+  `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files. Conflicts on
+  those paths are resolved automatically; only the remaining ones are listed at the end.
+- **Clean working tree:** commit or stash first. Changes inside submodules (and new submodule
+  commits you haven't staged) don't count and stay as they are.
 - **First run:** expect conflicts in every template file you have changed, or that the template
   has changed since you created the repo. That's because there is no common ancestor yet.
   Later updates merge normally.

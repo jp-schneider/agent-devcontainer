@@ -2,7 +2,7 @@
 # Merges updates from the devcontainer template into a repo created from it, or (--adopt) into an
 # existing repo that was not. Keeps this repo's own files (see own_paths) and drops template-only
 # ones (docs, policies, cleanup). Leaves the merge uncommitted for review.
-# Run from the repo root on a clean working tree. Bash 3.2 compatible (macOS).
+# Run from the repo root on a clean working tree (submodules may be dirty). Bash 3.2 compatible (macOS).
 #
 # Usage: .devcontainer/update-from-template.sh [--adopt] [<ref>] [<template-url>]
 #   <ref>:   a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
@@ -25,8 +25,11 @@ LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .v
 .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev"
 legacy=".devcontainer.legacy"
 
-if [ -n "$(git status --porcelain)" ]; then
-    echo "update-from-template: working tree not clean, commit or stash first" >&2
+# Submodules' own state (changes inside, new commits) doesn't matter: the template has none, and only
+# what is staged gets committed. Anything staged does, a submodule commit too.
+if [ -n "$(git status --porcelain --ignore-submodules=all)" ] \
+    || ! git diff --cached --quiet --ignore-submodules=none; then
+    echo "update-from-template: working tree not clean, commit or stash first (changes inside submodules are fine)" >&2
     exit 1
 fi
 if [ -n "$adopt" ]; then
@@ -66,23 +69,31 @@ elif [ -n "$adopt" ]; then
     exit 1
 fi
 
-# Conflicts are expected; own paths are resolved below, the rest is up to the user.
+# Conflicts are expected; own paths are resolved below, the rest is up to the user. git's own report
+# is kept back: it lists conflicts this script resolves (e.g. "deleted in HEAD and modified" for every
+# template-only file the template changed); the remaining ones are listed at the end.
 # A merge that didn't start (e.g. untracked files in the way) leaves no MERGE_HEAD: stop there.
 msg="Update devcontainer template to $new_version ($ref)"
 [ -z "$adopt" ] || msg="Adopt devcontainer template $new_version ($ref)"
-if ! git merge --no-commit --no-ff $unrelated -m "$msg" "$target"; then
+merge_log="$(mktemp)"
+if ! git merge --no-commit --no-ff $unrelated -m "$msg" "$target" > "$merge_log" 2>&1; then
     if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+        cat "$merge_log" >&2
+        rm -f "$merge_log"
         echo "update-from-template: merge did not start, see git's message above" >&2
         exit 1
     fi
 fi
+rm -f "$merge_log"
 
 # Only tracked files are touched; untracked/ignored ones (e.g. .claude/settings.local.json) stay
 for p in $own_paths; do
     if git cat-file -e "HEAD:$p" 2> /dev/null; then
-        # Drop files the template added under our path, then restore ours (also resolves conflicts)
-        git diff --cached --name-only --diff-filter=A HEAD -- "$p" | while IFS= read -r f; do
-            git rm -q -f -- "$f"
+        # Drop what isn't ours under our path: files the template added, and conflicted ones we don't
+        # have (the template changed a file we deleted; checkout HEAD can't resolve those). Then
+        # restore ours (also resolves the other conflicts).
+        git ls-files -- "$p" | LC_ALL=C sort -u | while IFS= read -r f; do
+            git cat-file -e "HEAD:$f" 2> /dev/null || git rm -q -f -- "$f"
         done
         git checkout HEAD -- "$p"
     else

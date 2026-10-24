@@ -16,9 +16,9 @@ snapshot() {
 
 setup_file() {
     setup_workdir
-    export WORK
     TMPL="$WORK/template"
     DER="$WORK/myproj"
+    export WORK TMPL DER
 
     # Template v0.1.0: the current repo's would-be content
     copy_repo "$TMPL"
@@ -84,6 +84,11 @@ setup_file() {
     # Template v0.3.0; update 2 with an explicit tag; shared history now
     echo "# v3 change" >> "$TMPL/.devcontainer/shared/compose.core.yml"
     echo "another template plan" > "$TMPL/.claude/plans/2026-10-10-00-00-template-only-2.md"
+    # Changes to files the derived repo doesn't have: git reports modify/delete conflicts for them,
+    # which the script resolves (docs/ is project-owned there, CHANGELOG.md and tests/ template-only)
+    echo "v3 docs change" >> "$TMPL/docs/architecture.md"
+    echo "v3 changelog change" >> "$TMPL/CHANGELOG.md"
+    echo "# v3 test change" >> "$TMPL/tests/helpers.bash"
     echo "0.3.0" > "$TMPL/.devcontainer/VERSION"
     git -C "$TMPL" add -A
     git -C "$TMPL" commit -q -m "template v3"
@@ -205,4 +210,77 @@ teardown_file() {
     tail -n 1 "$S/CLAUDE.md" | grep -q 'be nice'
     [ -f "$S/.claude/plans/own-plan.md" ]
     [ ! -e "$S/.claude/plans/2026-10-10-00-00-template-only-2.md" ]
+}
+
+@test "update 2: template changes to files the project doesn't have stay out, git's report not shown" {
+    S="$WORK/after-update2"
+    [ ! -e "$S/docs/architecture.md" ]
+    [ ! -e "$S/CHANGELOG.md" ]
+    [ ! -e "$S/tests/helpers.bash" ]
+    [ "$(cat "$S/docs/notes.md")" = "our own notes" ]
+    # git's merge report would list these as "deleted in HEAD and modified" conflicts
+    not_grep 'CONFLICT\|Automatic merge failed' "$WORK/update2.log"
+}
+
+# --- Clean working tree check (on clones of the derived repo after update 1, with a submodule)
+
+# clean_repo <dir>: clone of $DER at "Merge template v0.2.0" with a submodule "lib"
+clean_repo() {
+    git clone -q "$DER" "$1"
+    new_repo "$1-lib"
+    git -C "$1" -c protocol.file.allow=always submodule -q add "$1-lib" lib
+    git -C "$1" commit -q -m "add lib"
+}
+# update_in <dir>: update-from-template.sh v0.3.0 there; sets $status/$output
+update_in() {
+    run bash -c 'cd "$1" && "$2" .devcontainer/update-from-template.sh v0.3.0 "$3"' _ "$1" "$BASH_UNDER_TEST" "$TMPL"
+}
+
+@test "clean check: changes inside a submodule and a new unstaged submodule commit don't block, stay as they are" {
+    C="$WORK/clean-sub"
+    clean_repo "$C"
+    echo "work in progress" >> "$C/lib/f"
+    echo "new" > "$C/lib/new" && git -C "$C/lib" add new && git -C "$C/lib" commit -q -m "lib work"
+    echo "untracked in lib" > "$C/lib/u"
+    update_in "$C"
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$C" diff --cached --name-only | LC_ALL=C sort | tr '\n' ' ')" = ".devcontainer/VERSION .devcontainer/shared/compose.core.yml " ]
+    [ "$(git -C "$C" diff --name-only)" = lib ] # the new submodule commit: still unstaged
+    grep -q 'work in progress' "$C/lib/f"
+    [ -f "$C/lib/u" ]
+}
+
+@test "clean check: a staged submodule commit, a tracked change or an untracked file blocks, no merge started" {
+    C="$WORK/clean-block"
+    clean_repo "$C"
+    echo "new" > "$C/lib/new" && git -C "$C/lib" add new && git -C "$C/lib" commit -q -m "lib work"
+    git -C "$C" add lib
+    update_in "$C"
+    [ "$status" -ne 0 ]
+    output_has "working tree not clean"
+    git -C "$C" reset -q
+    git -C "$C" -c protocol.file.allow=always submodule -q update lib
+    for change in "echo x >> '$C/README.md'" "echo x > '$C/untracked'"; do
+        eval "$change"
+        update_in "$C"
+        [ "$status" -ne 0 ]
+        output_has "working tree not clean"
+        ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
+        git -C "$C" checkout -q -- README.md
+        rm -f "$C/untracked"
+    done
+}
+
+@test "merge did not start: git's own message is shown" {
+    C="$WORK/no-start"
+    git clone -q "$DER" "$C"
+    # git wrapper: `merge` fails before starting (as with untracked files in the way), the rest is git
+    mkdir -p "$WORK/fakegit"
+    printf '#!/usr/bin/env bash\n[ "$1" = merge ] && { echo "error: fake merge refusal" >&2; exit 1; }\nexec %s "$@"\n' \
+        "$(command -v git)" > "$WORK/fakegit/git"
+    chmod +x "$WORK/fakegit/git"
+    PATH="$WORK/fakegit:$PATH" update_in "$C"
+    [ "$status" -ne 0 ]
+    output_has "error: fake merge refusal"
+    output_has "merge did not start"
 }

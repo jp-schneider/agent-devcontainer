@@ -9,6 +9,17 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Fixed
+- **`update-from-template.sh` left conflicts on files you don't have.** When the template changed a
+  file under a project-owned path (`.claude/`, `docs/`) that the project doesn't have (e.g. removed
+  by the cleanup), the conflict stayed unresolved and was listed as one to resolve. These files are
+  now dropped like other template additions there. git's own merge report, which listed every such
+  file and every changed template-only file as "deleted in HEAD and modified", is no longer
+  printed; the script's final list of remaining conflicts is (unless the merge doesn't start).
+- **`update-from-template.sh` refused to run with dirty submodules.** Changes inside submodules and
+  unstaged new submodule commits no longer count as a dirty working tree (the template has no
+  submodules, and only staged changes are committed); anything staged still does.
+
 ## [0.1.3] - 2026-10-24
 
 ### Security
