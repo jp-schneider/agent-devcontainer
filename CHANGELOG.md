@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
 ### Changed
 - **Template repo only: releases publish on merge.** A pull request that bumps the version with
   `.github/release/prepare.sh` releases when merged: `release.yml` checks the bump
