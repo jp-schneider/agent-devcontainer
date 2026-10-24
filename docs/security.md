@@ -66,13 +66,22 @@ could escape the container the next time you start it or use git there.
 | `.git/hooks/`, `.git/config` | hooks, `core.hooksPath`, `core.fsmonitor`, filters, aliases run on the host | read-only. Commits work; `git config`, `push -u`, tracking branches and `submodule init` fail |
 | `.git/modules/` | submodule gitdirs have their own hooks/config | read-only; the agent can't commit **inside** submodules |
 | `.git/worktrees/` | `commondir`/`gitdir` redirect a worktree's git to another gitdir | read-only, except the current worktree's own entry (its `commondir`, `gitdir`, `config.worktree`, `modules/` stay read-only); `git worktree add` fails |
-| `/app/.git` (linked worktree) | pointer file; redirecting it changes which gitdir host git uses | read-only |
+| `/app/.git` (linked worktree, submodule workspace) | pointer file; redirecting it changes which gitdir host git uses | read-only (submodule workspace: a generated pointer, see below) |
 | `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` | hooks and MCP servers run when Claude Code runs **on the host**; permission rules | read-only; in-container "always allow" approvals don't persist |
 | `.vscode/` | tasks (`runOn: folderOpen`), interpreter and terminal settings in the host VS Code | read-only |
 | files matching `mask-patterns.txt` (anywhere in the workspace): `.env*`, `*.env`, private keys, `.netrc`/`.npmrc`/`.pypirc`, cloud credentials, `secrets.*`, tfvars/tfstate | host-only config and secrets | masked with `/dev/null` (empty, read-only). The host copy is untouched. Exceptions: `container.env`, `.env.example/.sample/.template`, the generated `shared/.env` |
 
 The main gitdir is reachable at **two** container paths in the main worktree: its absolute host
 path (worktree support mount) and `/app/.git`. Both are covered.
+
+**Workspace that is a submodule:** its gitdir `<super>/.git/modules/<name>` is mounted at its host
+path; the superproject isn't. Its relative `.git` pointer and `core.worktree` don't resolve from
+`/app`, so `/app/.git` and the gitdir's `config` are read-only binds of generated files
+(`.devcontainer/.generated/git-links/`, inside the read-only `.devcontainer/`). The generated
+`config` includes the host config through a read-only bind of the whole gitdir at
+`/opt/host-gitdir` (a directory bind, so host edits stay visible), then sets `core.worktree`.
+Nested submodules' pointers and configs are replaced the same way. Nothing becomes writable that
+isn't for a normal repo.
 
 **Placeholders:** paths that don't exist yet can't be mounted read-only, so the script creates
 them first: an empty `.vscode/`, `.claude/settings*.json` = `{}`, `.mcp.json` =
@@ -139,8 +148,8 @@ be hidden with this design:
 - **`/proc/self/mountinfo`** lists every bind mount with its host source path: home directory,
   repo path, volume paths. It also shows which files are masked (`/null -> /app/.env`). Every
   process can read it, and Docker doesn't mask it.
-- **Absolute host paths in the container are unavoidable:** the main repo's `.git` is mounted at
-  its real host path so git worktrees resolve.
+- **Absolute host paths in the container are unavoidable:** the common gitdir is mounted at
+  its real host path so git worktrees and submodule workspaces resolve.
 - **The generated overlays are readable:** `.devcontainer/.generated/compose.{host,protect}.yml`.
   `shared/.env` and `compose.resolved.yml` are masked, because they contain interpolated `.env` values.
 
@@ -151,7 +160,7 @@ encode secrets in paths or directory names.
 - **Passed in:** only `container.env` (`env_file`) plus variables an overlay passes explicitly
   (e.g. `UV_VENVS_ROOT`, `UV_PROJECT_ENVIRONMENT` from `toolchains/uv/compose.yml`).
 - **Not passed in:** the host-side values in `shared/.env` (`HOST_HOME`, `HOST_UID`/`GID`,
-  `LOCAL_WORKSPACE_FOLDER`, `GIT_MAIN_REPO_PATH`, `WORKTREE_NAME`, `PROJECT_SLUG`,
+  `LOCAL_WORKSPACE_FOLDER`, `GIT_COMMON_DIR`, `WORKTREE_NAME`, `PROJECT_SLUG`,
   everything copied from `.env`). They are only used for compose interpolation. This is tidiness, not
   confidentiality: see above.
 

@@ -142,6 +142,87 @@ protect() {
     has_mount "ro $WS/gd/ext/config -> /app/gd/ext/config"
 }
 
+# --- B2: the workspace is a submodule (gitdir in the superproject, relative pointers)
+
+# submodule_ws <superproject-dir> [<nested-path>]: $SUP with the repo $LIB as submodule "proj" (absorbed
+# gitdir), which has a nested submodule (default "inner"); sets SUP, B (the workspace), M (its gitdir),
+# L (generated links)
+submodule_ws() {
+    SUP="$1"
+    new_repo "$SUP"
+    git -C "$LIB" -c protocol.file.allow=always submodule -q add "$WS" "${2:-inner}"
+    git -C "$LIB" commit -q -m inner
+    git -C "$SUP" -c protocol.file.allow=always submodule -q add "$LIB" proj
+    git -C "$SUP" -c protocol.file.allow=always submodule -q update --init --recursive
+    B="$SUP/proj"
+    M="$SUP/.git/modules/proj"
+    L="$B/.devcontainer/.generated/git-links"
+    mkdir -p "$B/.devcontainer"
+}
+
+@test "submodule workspace: pointer and config replaced, gitdir protected at its own path only" {
+    submodule_ws "$WORK/super"
+    grep -qx 'gitdir: ../.git/modules/proj' "$B/.git" # the layout this is about
+    protect "$B"
+    [ "$status" -eq 0 ]
+    has_mount "ro $L/1.git -> /app/.git"
+    has_mount "ro $L/1.config -> $M/config"
+    for x in hooks modules worktrees; do
+        has_mount "ro $M/$x -> $M/$x"
+    done
+    has_mount "ro $M -> /opt/host-gitdir"
+    not_grep -- '-> /app/.git/' <<< "$MOUNTS"
+    not_grep "$SUP/\.git/config\|-> $SUP/\.git ->" <<< "$MOUNTS"
+    not_grep '^rw' <<< "$MOUNTS"
+    [ "$(cat "$L/1.git")" = "gitdir: $M" ]
+    [ "$(git config -f "$L/1.config" include.path)" = /opt/host-gitdir/config ]
+    [ "$(git config -f "$L/1.config" core.worktree)" = /app ]
+}
+
+@test "submodule workspace: nested submodule pointer and config relinked" {
+    submodule_ws "$WORK/super"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    has_mount "ro $L/2.git -> /app/inner/.git"
+    has_mount "ro $L/2.config -> $M/modules/inner/config"
+    [ "$(cat "$L/2.git")" = "gitdir: $M/modules/inner" ]
+    [ "$(git config -f "$L/2.config" include.path)" = /opt/host-gitdir/modules/inner/config ]
+    [ "$(git config -f "$L/2.config" core.worktree)" = /app/inner ]
+}
+
+@test "submodule workspace: generated files make git work at another worktree path, host config live" {
+    submodule_ws "$WORK/super"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    # What the container sees, with its paths moved under $C: the workspace at $C/app, the gitdir
+    # (config replaced by the generated one) and the read-only view of it
+    C="$WORK/ctr"
+    mkdir -p "$C/app"
+    cp -R "$M" "$C/gitdir"
+    sed "s|/opt/host-gitdir|$M|; s|= /app|= $C/app|" "$L/1.config" > "$C/gitdir/config"
+    echo "gitdir: $C/gitdir" > "$C/app/.git"
+    [ "$(git -C "$C/app" rev-parse --show-toplevel)" = "$C/app" ]
+    git -C "$B" remote add probe /nonexistent
+    git -C "$C/app" remote | grep -qx probe
+}
+
+@test "submodule workspace: awkward paths; nested path quoted in the generated config" {
+    N='in \"q\" #;x\\y'
+    submodule_ws "$WORK/sup 'q' \$HOME" "$N"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$L/1.git")" = "gitdir: $M" ]
+    [ "$(cat "$L/2.git")" = "gitdir: $M/modules/$N" ]
+    [ "$(git config -f "$L/2.config" core.worktree)" = "/app/$N" ]
+    [ "$(git config -f "$L/2.config" include.path)" = "/opt/host-gitdir/modules/$N/config" ]
+}
+
+@test "main worktree: no relinked files, no gitdir view" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    not_grep 'git-links\|/opt/host-gitdir' <<< "$MOUNTS"
+}
+
 # --- C: linked worktree
 
 @test "linked worktree: main gitdir only at its absolute path, own entry rw with ro pointers" {

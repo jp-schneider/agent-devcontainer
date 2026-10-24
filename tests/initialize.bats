@@ -77,8 +77,21 @@ apt_list() {
     E="$WS/.devcontainer/shared/.env"
     grep -qx 'PROJECT_SLUG=myproj' "$E"
     grep -qx "LOCAL_WORKSPACE_FOLDER=$WS" "$E"
+    grep -qx "GIT_COMMON_DIR=$WS/.git" "$E"
     grep -qx 'UV_PROJECT_ENVIRONMENT=.venv-myproj.ct' "$E"
     grep -q 'docker volume create claude-code-uv-python-versions' "$WORK/docker.log"
+}
+
+@test "workspace is a submodule: GIT_COMMON_DIR is its gitdir in the superproject, pointer relinked" {
+    SUP="$WORK/super"
+    new_repo "$SUP"
+    git -C "$SUP" -c protocol.file.allow=always submodule -q add "$WS" proj
+    WS="$SUP/proj"
+    init base
+    [ "$status" -eq 0 ]
+    grep -qx "GIT_COMMON_DIR=$SUP/.git/modules/proj" "$WS/.devcontainer/shared/.env"
+    grep -qF -- "-> /app/.git" <<< "$(yaml_mounts "$WS/.devcontainer/.generated/compose.protect.yml")"
+    grep -qx "gitdir: $SUP/.git/modules/proj" "$WS/.devcontainer/.generated/git-links/1.git"
 }
 
 @test "base variant (no toolchain): no UV_* and no volume creation" {

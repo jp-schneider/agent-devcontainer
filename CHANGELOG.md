@@ -9,6 +9,14 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Fixed
+- **Workspace that is itself a submodule:** git works in the container. Before, the mount pointed
+  to a non-existent `<super>/.git/modules/.git` and the relative `.git` pointer didn't resolve from
+  `/app`. Now the submodule's gitdir is mounted at its host path (superproject not mounted) and
+  `/app/.git` plus the gitdir's `config` are generated (`core.worktree = /app`, host config
+  included, so it stays live); nested submodules too. `GIT_MAIN_REPO_PATH` in `shared/.env` is now
+  `GIT_COMMON_DIR` (the gitdir itself).
+
 ## [0.1.2] - 2026-10-24
 
 ### Changed

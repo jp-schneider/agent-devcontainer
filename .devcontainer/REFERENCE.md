@@ -78,6 +78,14 @@ If you add mask patterns, consider adding matching deny rules.
   run their hooks and config. Remove the repo, run `git submodule absorbgitdirs` for old-style
   submodules, or add the directory to the allowlist on the host.
 
+**Workspace that is itself a submodule** (opened in `A/B`, B a submodule of A): only B's gitdir
+`A/.git/modules/B` is mounted, at its host path, not the rest of A. B's `.git` pointer and the
+gitdir's `core.worktree` are relative to the host layout, so the container gets generated
+replacements (`.devcontainer/.generated/git-links/`): `/app/.git` points to the absolute gitdir,
+and its `config` includes the host config, then sets `core.worktree = /app`. Host config changes
+stay visible. Submodules of B get the same treatment; one added while the container runs works
+after a restart. Superproject commands don't work inside the container.
+
 **Developing the template from inside the container:** set `DEVCONTAINER_EDITABLE_BY_AGENT=1` in
 `.env` to leave `.devcontainer/` writable. The agent can then change what runs on your host at the
 next start, so review `git diff -- .devcontainer` before every restart. Don't use it in

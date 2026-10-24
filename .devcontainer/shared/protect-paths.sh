@@ -35,14 +35,28 @@ mkdir -p .vscode .claude
 [ -e .claude/settings.local.json ] || echo '{}' > .claude/settings.local.json
 [ -e .mcp.json ] || echo '{"mcpServers": {}}' > .mcp.json
 
-# --- Git layout. Mirrors GIT_MAIN_REPO_PATH in initialize.sh: the main repo's .git
-# is mounted at the same absolute path (and is also /app/.git in the main worktree).
+# --- Git layout. Mirrors GIT_COMMON_DIR in initialize.sh: the common gitdir is mounted
+# at the same absolute path (and is also /app/.git in the main worktree).
 main_git=""
 self_git=""
 if common="$(git rev-parse --git-common-dir 2> /dev/null)"; then
     main_git="$(cd "$common" && pwd -P)"
     self_git="$(cd "$(git rev-parse --git-dir)" && pwd -P)"
 fi
+# Gitdir outside the workspace and not a linked worktree's: the workspace is a submodule
+# (<super>/.git/modules/<name>) or uses --separate-git-dir. Its .git pointer and core.worktree
+# can be relative to the host layout and are replaced (see relink below).
+external=0
+if [ -n "$main_git" ] && [ "$self_git" = "$main_git" ] && [ "$main_git" != "$ws/.git" ]; then
+    external=1
+fi
+
+# resolve_pointer <.git file>: the gitdir it points to, physical path; empty if unresolvable
+resolve_pointer() {
+    local gitdir
+    gitdir="$(sed -n 's/^gitdir: //p' "$1" | head -n 1)"
+    (cd "$(dirname "$1")" 2> /dev/null && cd "$gitdir" 2> /dev/null && pwd -P) || true
+}
 
 # --- Nested repositories. Known ones are protected like the main repo; unknown ones abort.
 violations=""
@@ -51,10 +65,7 @@ pointers=""       # workspace-relative .git pointer files (submodules, allowlist
 while IFS= read -r g; do
     rel="${g#./}"
     resolved=""
-    if [ -f "$g" ]; then
-        gitdir="$(sed -n 's/^gitdir: //p' "$g" | head -n 1)"
-        resolved="$(cd "$(dirname "$g")" 2> /dev/null && cd "$gitdir" 2> /dev/null && pwd -P)" || resolved=""
-    fi
+    [ -f "$g" ] && resolved="$(resolve_pointer "$g")"
     if [ -f "$allowlist" ] && grep -qxF "$(dirname "$rel")" "$allowlist"; then
         if [ -d "$g" ]; then
             nested_gitdirs="${nested_gitdirs}${ws}/${rel}"$'\n'
@@ -105,12 +116,34 @@ bind() { # <host-source> <container-target> <read_only: true|false>
     printf '      - type: bind\n        source: %s\n        target: %s\n        read_only: %s\n' \
         "$(quote "$1")" "$(quote "$2")" "$3" >> "$tmp"
 }
-protect_gitdir() { # <host-gitdir> <container-gitdir>: everything in it that host git executes or follows
+protect_gitdir() { # <host-gitdir> <container-gitdir> [<config-source>]: everything in it that host git executes or follows
     mkdir -p "$1/hooks" "$1/modules" "$1/worktrees"
     bind "$1/hooks" "$2/hooks" true
-    bind "$1/config" "$2/config" true
+    bind "${3:-$1/config}" "$2/config" true
     bind "$1/modules" "$2/modules" true
     bind "$1/worktrees" "$2/worktrees" true
+}
+
+# Relinked gitdirs (gitdir outside the workspace, mounted at its own path; see external above):
+# relink <host-gitdir> <container-worktree> writes $link.git, a pointer with the absolute gitdir,
+# and $link.config, which includes the host config and then sets core.worktree. The include reads
+# the host config through a read-only bind of main_git at $host_git_view, so host changes stay
+# live (git rewrites config by rename; a single-file bind would keep the old inode).
+links="$(cd "$(dirname "$out")" && pwd -P)/git-links"
+host_git_view=/opt/host-gitdir
+rm -rf "$links"
+n=0
+link=""
+gitconfig_quote() { # double-quoted git config value
+    printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"
+}
+relink() {
+    mkdir -p "$links"
+    n=$((n + 1))
+    link="$links/$n"
+    printf 'gitdir: %s\n' "$1" > "$link.git"
+    printf '[include]\n\tpath = %s\n[core]\n\tworktree = %s\n' \
+        "$(gitconfig_quote "$host_git_view${1#"$main_git"}/config")" "$(gitconfig_quote "$2")" > "$link.config"
 }
 
 cat > "$tmp" <<'EOF'
@@ -158,12 +191,19 @@ resolved="$ws/.devcontainer/.generated/compose.resolved.yml"
 bind /dev/null /app/.devcontainer/.generated/compose.resolved.yml true
 
 if [ -n "$main_git" ]; then
+    config="$main_git/config"
+    pointer="$ws/.git"
+    if [ "$external" = 1 ]; then
+        relink "$main_git" /app
+        config="$link.config"
+        pointer="$link.git"
+    fi
     targets="$main_git"
     # Main worktree: the same gitdir is also reachable through the workspace mount
     [ "$main_git" = "$ws/.git" ] && targets="$targets
 /app/.git"
     while IFS= read -r t; do
-        protect_gitdir "$main_git" "$t"
+        protect_gitdir "$main_git" "$t" "$config"
         if [ "$self_git" != "$main_git" ]; then
             # Linked worktree: its own gitdir stays writable (HEAD, index), its pointers don't
             name="${self_git#"$main_git"/worktrees/}"
@@ -175,18 +215,32 @@ if [ -n "$main_git" ]; then
             bind "$self_git/modules" "$t/worktrees/$name/modules" true
         fi
     done <<< "$targets"
-    # Linked worktree: the .git pointer file in the workspace
-    [ -f "$ws/.git" ] && bind "$ws/.git" /app/.git true
+    # Linked worktree or external gitdir: the .git pointer file in the workspace
+    [ -f "$ws/.git" ] && bind "$pointer" /app/.git true
 fi
 
 # Allowlisted nested repos: same protection as the main gitdir
 while IFS= read -r d; do
     [ -n "$d" ] && protect_gitdir "$d" "/app/${d#"$ws"/}"
 done <<< "$nested_gitdirs"
-# .git pointer files (submodules, allowlisted): redirecting one changes which gitdir host git uses
+# .git pointer files (submodules, allowlisted): redirecting one changes which gitdir host git uses.
+# One into main_git outside the workspace (submodules of a submodule workspace) is relinked.
 while IFS= read -r p; do
-    [ -n "$p" ] && bind "$ws/$p" "/app/$p" true
+    [ -n "$p" ] || continue
+    src="$ws/$p"
+    if [ -n "$main_git" ] && [ "$external" = 1 ]; then
+        r="$(resolve_pointer "$ws/$p")"
+        case "$r" in
+            "$main_git"/*)
+                relink "$r" "/app/$(dirname "$p")"
+                src="$link.git"
+                bind "$link.config" "$r/config" true
+                ;;
+        esac
+    fi
+    bind "$src" "/app/$p" true
 done <<< "$pointers"
+[ "$n" -gt 0 ] && bind "$main_git" "$host_git_view" true
 
 mv "$tmp" "$out"
 echo "protect-paths: wrote $out"

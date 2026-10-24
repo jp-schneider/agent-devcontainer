@@ -254,6 +254,9 @@ Edit those files on the host, then restart or rebuild if needed.
 ### Can I use submodules or other repositories inside the workspace?
 
 - **Submodules:** yes.
+- **The workspace itself as a submodule of another repo:** yes, open the submodule's folder. Only
+  its own gitdir is mounted, not the superproject (see
+  [REFERENCE.md](REFERENCE.md#protected-paths)).
 - **Other nested repositories:** the start aborts. If you need one, list its directory in
   `.devcontainer/allowed-nested-git.txt` (one path per line); it is then protected like the main
   repo.
