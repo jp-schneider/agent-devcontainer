@@ -9,6 +9,11 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Changed
+- **Template repo only: `prepare.sh` commits the release.** It refuses a dirty working tree
+  (untracked files included), then commits `CHANGELOG.md` and `.devcontainer/VERSION` as
+  "Release vX.Y.Z"; the separate `git commit` step is gone. `--notes` is unchanged.
+
 ## [0.1.2] - 2026-10-24
 
 ### Changed
