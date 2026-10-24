@@ -23,6 +23,18 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   read-only in every known nested repo; the rest of its `.claude/` stays writable. Missing settings
   files are created as placeholders, as at the root, and show as untracked in the submodule.
 
+- **A planted `.git/commondir` could run code on the host.** git reads `commondir` in any gitdir
+  and then takes `config` and `hooks/` from the directory it names, so one file written into the
+  writable part of `.git` bypassed the read-only `config` and `hooks/` (e.g. `core.fsmonitor`, run
+  by the next `git status` on the host). Every protected gitdir now gets a read-only placeholder
+  `commondir` containing `.` (the gitdir itself; created on the host if missing), and a start
+  aborts if the workspace's or an allowlisted repo's gitdir already has another one.
+
+### Added
+- **`DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1`** (host-only `.env`): commits inside submodules from
+  the container. Checked-out submodule gitdirs, nested ones too, become writable with the main
+  repo's protection (their hooks, config, `modules/`, `worktrees/` and `commondir` stay
+  read-only); `modules/` itself stays read-only. Off by default; every start warns when it's on.
 
 ### Fixed
 - **Workspace that is itself a submodule:** git works in the container. Before, the mount pointed

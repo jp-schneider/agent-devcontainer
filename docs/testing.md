@@ -33,7 +33,7 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 
 | Suite | Covers |
 |---|---|
-| `protect-paths.bats` | read-only binds (main worktree, linked worktree, submodules, submodule workspace with generated pointer/config, allowlisted repos and pointers), planted-repo aborts, secret masks (defaults, project file, `!` exceptions), awkward paths, `DEVCONTAINER_EDITABLE_BY_AGENT` |
+| `protect-paths.bats` | read-only binds (main worktree, linked worktree, submodules, submodule workspace with generated pointer/config, `commondir` placeholder and planted-`commondir` aborts, `DEVCONTAINER_GIT_SUBMODULES_WRITABLE`, allowlisted repos and pointers), planted-repo aborts, secret masks (defaults, project file, `!` exceptions), awkward paths, `DEVCONTAINER_EDITABLE_BY_AGENT` |
 | `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
@@ -76,6 +76,9 @@ After changes to the Dockerfile, compose files or host scripts:
    - A commit still works: `git commit --allow-empty -m test`, then `git reset --soft HEAD~1`.
    - VS Code: Source Control still shows the main repo (with `git.autoRepositoryDetection: false`
      it may need "Git: Open Repository" once; note which), and a planted repo is **not** auto-opened.
+   - `echo x > /app/.git/commondir` fails (read-only); `cat /app/.git/commondir` prints `.`.
+   - With `DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1`: a commit inside a submodule works, nested too;
+     `touch <submodule gitdir>/hooks/x` and `mkdir /app/.git/modules/new` fail.
    - Submodule workspace (open a submodule B of some repo A): `git status` and a commit work in
      B; `git remote -v` shows a remote added on the host (`git -C A/B remote add probe /x`)
      without restart; a nested submodule of B works too (`git -C /app/<nested> status`).

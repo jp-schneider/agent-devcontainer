@@ -58,12 +58,12 @@ project, create `.devcontainer/mask-patterns.txt` (same format; `!` lines unmask
 
 The agent can't modify files that the host later executes or trusts. These are mounted read-only:
 - `.devcontainer/`
-- git hooks/config/modules/worktrees
+- git hooks/config/modules/worktrees, and `commondir` (a read-only placeholder `.`)
 - `.claude/settings*.json`, `.mcp.json`
 - `.vscode/`
 
 Commits still work; `git config`, `push -u`, `submodule init`, `worktree add` and commits inside
-submodules don't. Placeholders for these paths are created on first start (`.vscode/`,
+submodules don't (for the last, see the switch below). Placeholders for these paths are created on first start (`.vscode/`,
 `.claude/settings*.json`, `.mcp.json`). Commit them or leave them untracked.
 
 **Secret files** are also denied to Claude Code (`.claude/settings.json`, created from
@@ -89,6 +89,12 @@ replacements (`.devcontainer/.generated/git-links/`): `/app/.git` points to the 
 and its `config` includes the host config, then sets `core.worktree = /app`. Host config changes
 stay visible. Submodules of B get the same treatment; one added while the container runs works
 after a restart. Superproject commands don't work inside the container.
+
+**Commits inside submodules:** set `DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1` in `.env` on the host.
+Checked-out submodules (nested ones too) then get the main repo's protection: their gitdir is
+writable, its hooks, config, `modules/`, `worktrees/` and `commondir` stay read-only. A submodule
+added while the container runs is writable after the next start; `git submodule add`/`init` still
+don't work.
 
 **Developing the template from inside the container:** set `DEVCONTAINER_EDITABLE_BY_AGENT=1` in
 `.env` to leave `.devcontainer/` writable. The agent can then change what runs on your host at the

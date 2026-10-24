@@ -55,14 +55,54 @@ protect() {
     has_mount "ro $WS/.mcp.json -> /app/.mcp.json"
 }
 
-@test "main worktree: git hooks/config/modules/worktrees read-only at both container paths, nothing rw" {
+@test "main worktree: git hooks/config/modules/worktrees/commondir read-only at both container paths, nothing rw" {
     protect "$WS"
     for t in "$G" /app/.git; do
-        for x in hooks config modules worktrees; do
+        for x in hooks config modules worktrees commondir; do
             has_mount "ro $G/$x -> $t/$x"
         done
     done
     not_grep '^rw' <<< "$MOUNTS"
+    [ "$(cat "$G/commondir")" = . ]
+}
+
+@test "commondir: a planted one in the workspace gitdir aborts (target existing or not), no overlay" {
+    # Verified separately: git takes config and hooks from the directory commondir names. An
+    # existing target is what an attack looks like: git then resolves the common dir to it.
+    mkdir -p "$WORK/evil/objects" "$WORK/evil/refs"
+    printf '[core]\n\trepositoryformatversion = 0\n' > "$WORK/evil/config"
+    for target in "$WORK/evil" "$WORK/missing"; do
+        echo "$target" > "$G/commondir"
+        protect "$WS"
+        [ "$status" -ne 0 ]
+        output_has "ABORT, git doesn't resolve this workspace's repository to its own gitdir"
+        [ ! -e "$WS/$OUT" ]
+    done
+    [ ! -e "$WORK/evil/commondir" ] # nothing written into the redirect target
+}
+
+@test "commondir: a planted one in an allowlisted repo's gitdir aborts" {
+    git init -q "$WS/planted"
+    echo "planted" > "$WS/.devcontainer/allowed-nested-git.txt"
+    echo "$WORK/evil" > "$WS/planted/.git/commondir"
+    protect "$WS"
+    [ "$status" -ne 0 ]
+    output_has "ABORT, $WS/planted/.git/commondir redirects git"
+    [ ! -e "$WS/$OUT" ]
+    [ ! -e "$WS/$OUT.tmp" ]
+}
+
+@test "commondir: the '.' placeholder keeps git working (status, commit, worktree add)" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    git -C "$WS" status --short > /dev/null
+    git -C "$WS" commit -q --allow-empty -m after
+    [ "$(cd "$WS" && cd "$(git rev-parse --git-common-dir)" && pwd -P)" = "$G" ]
+    git -C "$WS" worktree add -q "$WORK/wt2" -b wt2
+    git -C "$WORK/wt2" status --short > /dev/null
+    # and a second start accepts its own placeholder
+    protect "$WS"
+    [ "$status" -eq 0 ]
 }
 
 @test "env files: masked except container.env and .env.example" {
@@ -127,7 +167,7 @@ protect() {
     echo "planted" > "$WS/.devcontainer/allowed-nested-git.txt"
     protect "$WS"
     [ "$status" -eq 0 ]
-    for x in hooks config modules worktrees; do
+    for x in hooks config modules worktrees commondir; do
         has_mount "ro $WS/planted/.git/$x -> /app/planted/.git/$x"
     done
 }
@@ -229,7 +269,7 @@ link_for() {
     [ "$status" -eq 0 ]
     has_mount "ro $L/1.git -> /app/.git"
     has_mount "ro $L/1.config -> $M/config"
-    for x in hooks modules worktrees; do
+    for x in hooks modules worktrees commondir; do
         has_mount "ro $M/$x -> $M/$x"
     done
     has_mount "ro $M -> /opt/host-gitdir"
@@ -303,6 +343,8 @@ EOF
     [ "$status" -eq 0 ]
     S="$G/worktrees/wt"
     has_mount "ro $G/hooks -> $G/hooks"
+    has_mount "ro $G/commondir -> $G/commondir"
+    [ "$(cat "$S/commondir")" = ../.. ] # the worktree's own one is real and stays
     not_grep -- '-> /app/.git/hooks' <<< "$MOUNTS"
     has_mount "rw $S -> $S"
     has_mount "ro $S/commondir -> $S/commondir"
@@ -345,6 +387,77 @@ EOF
 }
 
 # --- F: template development switch
+
+# --- F2: DEVCONTAINER_GIT_SUBMODULES_WRITABLE
+
+# no_duplicate_targets: every container path in $MOUNTS is bound once (compose refuses duplicates)
+no_duplicate_targets() {
+    local dup
+    dup="$(sed 's/.* -> //' <<< "$MOUNTS" | LC_ALL=C sort | uniq -d)"
+    [ -z "$dup" ] && return 0
+    printf 'duplicate mount targets:\n%s\n' "$dup" >&2
+    return 1
+}
+
+@test "submodules writable: off by default and with =0, submodule gitdir only under read-only modules/" {
+    for v in "" "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=0"; do
+        [ -z "$v" ] || echo "$v" >> "$WS/.env"
+        protect "$WS"
+        [ "$status" -eq 0 ]
+        not_grep '^rw' <<< "$MOUNTS"
+        not_grep -- "-> $G/modules/sub" <<< "$MOUNTS"
+        [ ! -e "$G/modules/sub/commondir" ]
+    done
+}
+
+@test "submodules writable: =1 warns; gitdir rw at both container paths, its host-executed parts ro" {
+    echo "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1" >> "$WS/.env"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    output_has "WARNING submodule gitdirs are writable"
+    S="$G/modules/sub"
+    for t in "$G" /app/.git; do
+        has_mount "ro $G/modules -> $t/modules" # no new gitdirs
+        has_mount "rw $S -> $t/modules/sub"
+        for x in hooks config modules worktrees commondir; do
+            has_mount "ro $S/$x -> $t/modules/sub/$x"
+        done
+    done
+    [ "$(cat "$S/commondir")" = . ]
+    [ "$(grep -c '^rw' <<< "$MOUNTS")" = 2 ]
+    no_duplicate_targets
+}
+
+@test "submodules writable: =1 in a submodule workspace, nested levels too, relinked config used" {
+    submodule_ws "$WORK/super"
+    echo "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1" >> "$B/.env"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    while read -r d rg; do
+        g="$M/$rg"
+        k="$(link_for "/app/$d/.git")"
+        has_mount "rw $g -> $g"
+        has_mount "ro $k.config -> $g/config"
+        for x in hooks modules worktrees commondir; do
+            has_mount "ro $g/$x -> $g/$x"
+        done
+    done << 'EOF'
+inner modules/inner
+inner/sub modules/inner/modules/sub
+EOF
+    has_mount "ro $M/modules -> $M/modules"
+    [ "$(grep -c '^rw' <<< "$MOUNTS")" = 2 ]
+    no_duplicate_targets
+}
+
+@test "negative control: no_duplicate_targets catches a duplicate" {
+    MOUNTS="ro /a -> /x
+ro /b -> /x"
+    if no_duplicate_targets 2> /dev/null; then
+        echo "no_duplicate_targets missed a duplicate" >&2
+        return 1
+    fi
+}
 
 @test "DEVCONTAINER_EDITABLE_BY_AGENT=1: warns, .devcontainer writable, rest still protected" {
     echo "DEVCONTAINER_EDITABLE_BY_AGENT=1" >> "$WS/.env"

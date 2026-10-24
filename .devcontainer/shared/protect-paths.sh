@@ -35,6 +35,24 @@ if common="$(git rev-parse --git-common-dir 2> /dev/null)"; then
     main_git="$(cd "$common" && pwd -P)"
     self_git="$(cd "$(git rev-parse --git-dir)" && pwd -P)"
 fi
+# git reads commondir in any gitdir and then takes config and hooks from the directory it names, so a
+# planted one in the workspace's gitdir would also make main_git above point there. Only a linked
+# worktree (a .git file) has a gitdir that differs from main_git, and it is main_git/worktrees/<name>.
+if [ -e "$ws/.git" ]; then
+    gitdir_ok=0
+    if [ -n "$main_git" ] && [ "$self_git" = "$main_git" ]; then
+        gitdir_ok=1
+    elif [ -n "$main_git" ] && [ -f "$ws/.git" ]; then
+        case "$self_git" in "$main_git"/worktrees/*) gitdir_ok=1 ;; esac
+    fi
+    if [ "$gitdir_ok" = 0 ]; then
+        echo "protect-paths: ABORT, git doesn't resolve this workspace's repository to its own gitdir:" >&2
+        echo "  gitdir: ${self_git:-?}, common dir: ${main_git:-?}" >&2
+        echo "A 'commondir' file in the gitdir makes git use another directory's config and hooks." >&2
+        echo "Check it on the host; if you didn't create it, remove it." >&2
+        exit 1
+    fi
+fi
 # Gitdir outside the workspace and not a linked worktree's: the workspace is a submodule
 # (<super>/.git/modules/<name>) or uses --separate-git-dir. Its .git pointer and core.worktree
 # can be relative to the host layout and are replaced (see relink below).
@@ -128,10 +146,21 @@ protect_trusted() {
 }
 protect_gitdir() { # <host-gitdir> <container-gitdir> [<config-source>]: everything in it that host git executes or follows
     mkdir -p "$1/hooks" "$1/modules" "$1/worktrees"
+    # git reads commondir in any gitdir and then takes config and hooks from the directory it names.
+    # Placeholder "." (this gitdir itself; an empty file breaks git). A main gitdir never has another one.
+    [ -e "$1/commondir" ] || echo . > "$1/commondir"
+    if [ "$(cat "$1/commondir" 2> /dev/null)" != . ]; then
+        echo "protect-paths: ABORT, $1/commondir redirects git to another config and hooks:" >&2
+        echo "  $(cat "$1/commondir" 2> /dev/null)" >&2
+        echo "Check it on the host; if you didn't create it, remove it (or replace its content with '.')." >&2
+        rm -f "$tmp"
+        exit 1
+    fi
     bind "$1/hooks" "$2/hooks" true
     bind "${3:-$1/config}" "$2/config" true
     bind "$1/modules" "$2/modules" true
     bind "$1/worktrees" "$2/worktrees" true
+    bind "$1/commondir" "$2/commondir" true
 }
 
 # Relinked gitdirs (gitdir outside the workspace, mounted at its own path; see external above):
@@ -175,6 +204,13 @@ if grep -qx 'DEVCONTAINER_EDITABLE_BY_AGENT=1' .env 2> /dev/null; then
 else
     bind "$ws/.devcontainer" /app/.devcontainer true
 fi
+# DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1 in .env: commits inside submodules (see the pointer loop)
+submodules_writable=0
+if grep -qx 'DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1' .env 2> /dev/null; then
+    submodules_writable=1
+    echo "protect-paths: WARNING submodule gitdirs are writable by the agent (DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1 in .env);" >&2
+    echo "protect-paths: WARNING their hooks, config, modules/, worktrees/ and commondir stay read-only." >&2
+fi
 protect_trusted ""
 # Known nested repos can be opened on the host on their own (as a devcontainer, too), so the same
 # paths; their .devcontainer/ always (the switch above is for this workspace only). Empty
@@ -206,6 +242,7 @@ resolved="$ws/.devcontainer/.generated/compose.resolved.yml"
 [ -e "$resolved" ] || : > "$resolved"
 bind /dev/null /app/.devcontainer/.generated/compose.resolved.yml true
 
+targets="" # container paths of main_git
 if [ -n "$main_git" ]; then
     config="$main_git/config"
     pointer="$ws/.git"
@@ -240,19 +277,31 @@ while IFS= read -r d; do
     [ -n "$d" ] && protect_gitdir "$d" "/app/${d#"$ws"/}"
 done <<< "$nested_gitdirs"
 # .git pointer files (submodules, allowlisted): redirecting one changes which gitdir host git uses.
-# One into main_git outside the workspace (submodules of a submodule workspace) is relinked.
+# For one into main_git (submodule gitdirs live in main_git/modules or a worktree's modules/):
+# - relinked if main_git is outside the workspace (submodules of a submodule workspace);
+# - with DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1, its gitdir is writable at every container path
+#   of main_git, protected like the main gitdir. modules/ itself stays read-only, so no new gitdir
+#   can be planted there (the scan trusts pointers into it). Nested submodules have their own
+#   pointers, so this applies recursively. Docker mounts parents before children.
 while IFS= read -r p; do
     [ -n "$p" ] || continue
     src="$ws/$p"
-    if [ -n "$main_git" ] && [ "$external" = 1 ]; then
-        r="$(resolve_pointer "$ws/$p")"
-        case "$r" in
-            "$main_git"/*)
-                relink "$r" "/app/$(dirname "$p")"
-                src="$link.git"
-                bind "$link.config" "$r/config" true
-                ;;
-        esac
+    r=""
+    [ -n "$main_git" ] && r="$(resolve_pointer "$ws/$p")"
+    case "$r" in "$main_git"/*) ;; *) r="" ;; esac
+    config="$r/config"
+    if [ -n "$r" ] && [ "$external" = 1 ]; then
+        relink "$r" "/app/$(dirname "$p")"
+        src="$link.git"
+        config="$link.config"
+    fi
+    if [ -n "$r" ] && [ "$submodules_writable" = 1 ]; then
+        while IFS= read -r t; do
+            bind "$r" "$t${r#"$main_git"}" false
+            protect_gitdir "$r" "$t${r#"$main_git"}" "$config"
+        done <<< "$targets"
+    elif [ -n "$r" ] && [ "$config" != "$r/config" ]; then
+        bind "$config" "$r/config" true
     fi
     bind "$src" "/app/$p" true
 done <<< "$pointers"
