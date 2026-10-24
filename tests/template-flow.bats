@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # Template lifecycle end to end: "Use this template" → cleanup → customize → update 1 (unrelated
-# histories, default = latest tag) → update 2 (shared history, explicit tag).
+# histories, merge base = the release in VERSION, default = latest tag) → update 2 (shared history,
+# explicit tag); then squashed history and the unrelated-histories fallback on clones.
 # The scenario runs once in setup_file and records snapshots; each test checks one aspect of them.
 
 load helpers
@@ -50,6 +51,7 @@ setup_file() {
     echo "our own notes" > "$DER/docs/notes.md"
     echo "# our project mounts" >> "$DER/.devcontainer/compose.project.yml"
     echo "our-pkg" >> "$DER/.devcontainer/apt-packages.txt"
+    echo "# our core tweak" >> "$DER/.devcontainer/shared/compose.core.yml" # conflicts with v2
     git -C "$DER" add -A
     git -C "$DER" commit -q -m "customize"
     echo '{"local": true}' > "$DER/.claude/settings.local.json" # gitignored, must survive
@@ -72,7 +74,7 @@ setup_file() {
     git -C "$TMPL" tag -a v0.2.0 -m v0.2.0
     git -C "$TMPL" commit -q --allow-empty -m "unreleased work on main"
 
-    # Update 1: no ref → latest tag; unrelated histories
+    # Update 1: no ref → latest tag; unrelated histories, base v0.1.0 (VERSION)
     (cd "$DER" && "$BASH_UNDER_TEST" .devcontainer/update-from-template.sh "" "$TMPL" > "$WORK/update1.log" 2>&1) || true
     snapshot after-update1
     # Resolve the expected conflict with the template's version and commit
@@ -184,6 +186,16 @@ teardown_file() {
     [ -f "$WORK/after-update1/.claude/settings.local.json" ]
 }
 
+@test "update 1: no shared history, so the release in VERSION is the merge base" {
+    grep -qF 'no shared history with the template' "$WORK/update1.log"
+    grep -qF 'merge base: v0.1.0' "$WORK/update1.log"
+}
+
+@test "update 1: the commit has the template as second parent (shared history from now on)" {
+    # HEAD is "Merge template v0.2.0" (update 2 is staged, not committed)
+    [ "$(git -C "$DER" rev-parse HEAD^2)" = "$(git -C "$TMPL" rev-parse 'v0.2.0^{commit}')" ]
+}
+
 @test "update 1: only the real conflict remains (VERSION resolved to the template's)" {
     [ "$(cat "$WORK/after-update1.conflicts")" = ".devcontainer/shared/compose.core.yml" ]
     [ "$(cat "$WORK/after-update1/.devcontainer/VERSION")" = "0.2.0" ]
@@ -283,4 +295,59 @@ update_in() {
     [ "$status" -ne 0 ]
     output_has "error: fake merge refusal"
     output_has "merge did not start"
+}
+
+# squashed_repo <dir>: clone of $DER whose "Merge template v0.2.0" is squashed (template parent dropped)
+squashed_repo() {
+    git clone -q "$DER" "$1"
+    git -C "$1" reset -q --hard "$(git -C "$1" commit-tree 'HEAD^{tree}' -p HEAD^1 -m "Update (squashed)")"
+    ! git -C "$1" merge-base HEAD "$(git -C "$TMPL" rev-parse 'v0.3.0^{commit}')" > /dev/null 2>&1
+}
+
+@test "squashed update: base from VERSION, only template changes staged, no conflicts; commit re-links" {
+    C="$WORK/squashed"
+    squashed_repo "$C"
+    # changed on both sides without overlap: needs the file-level merge, not just the tree merge
+    { echo "# our first line"; cat "$C/.devcontainer/shared/compose.core.yml"; } > "$C/core.tmp"
+    mv "$C/core.tmp" "$C/.devcontainer/shared/compose.core.yml"
+    git -C "$C" commit -q -am "our core change"
+    update_in "$C"
+    [ "$status" -eq 0 ]
+    output_has "merge base: v0.2.0"
+    [ -z "$(git -C "$C" diff --name-only --diff-filter=U)" ]
+    [ "$(git -C "$C" diff --cached --name-only | LC_ALL=C sort | tr '\n' ' ')" = ".devcontainer/VERSION .devcontainer/shared/compose.core.yml " ]
+    tail -n 1 "$C/.devcontainer/shared/compose.core.yml" | grep -q 'v3 change'
+    head -n 1 "$C/.devcontainer/shared/compose.core.yml" | grep -q 'our first line'
+    [ ! -e "$C/CHANGELOG.md" ]
+    git -C "$C" commit -q --no-edit
+    [ "$(git -C "$C" log -1 --format=%s)" = "Update devcontainer template to 0.3.0 (v0.3.0)" ]
+    [ "$(git -C "$C" rev-parse HEAD^2)" = "$(git -C "$TMPL" rev-parse 'v0.3.0^{commit}')" ]
+}
+
+@test "squashed update: a VERSION without a release tag falls back to unrelated histories" {
+    C="$WORK/squashed-untagged"
+    squashed_repo "$C"
+    echo "0.2.5" > "$C/.devcontainer/VERSION"
+    git -C "$C" commit -q -am "VERSION without a tag"
+    update_in "$C"
+    [ "$status" -eq 0 ]
+    not_grep 'merge base:' <<< "$output"
+    # add/add conflicts on every file that differs, as on a first update without a base
+    git -C "$C" diff --name-only --diff-filter=U | grep -qx .devcontainer/shared/compose.core.yml
+}
+
+@test "squashed update: a refused merge (read-tree) stops with git's message, nothing staged" {
+    C="$WORK/squashed-blocked"
+    squashed_repo "$C"
+    # git wrapper: read-tree refuses (as with untracked files in the way), the rest is git
+    mkdir -p "$WORK/fakegit-rt"
+    printf '#!/usr/bin/env bash\n[ "$1" = read-tree ] && { echo "error: fake read-tree refusal" >&2; exit 128; }\nexec %s "$@"\n' \
+        "$(command -v git)" > "$WORK/fakegit-rt/git"
+    chmod +x "$WORK/fakegit-rt/git"
+    PATH="$WORK/fakegit-rt:$PATH" update_in "$C"
+    [ "$status" -ne 0 ]
+    output_has "error: fake read-tree refusal"
+    output_has "merge did not start"
+    [ -z "$(git -C "$C" diff --cached --name-only)" ]
+    ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
 }

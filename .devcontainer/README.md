@@ -207,9 +207,12 @@ takes the template's value.
   those paths are resolved automatically; only the remaining ones are listed at the end.
 - **Clean working tree:** commit or stash first. Changes inside submodules (and new submodule
   commits you haven't staged) don't count and stay as they are.
-- **First run:** expect conflicts in every template file you have changed, or that the template
-  has changed since you created the repo. That's because there is no common ancestor yet.
-  Later updates merge normally.
+- **First run, or after a squash-merged update:** there is no common history with the template,
+  so the script uses the template release in `.devcontainer/VERSION` as the merge base. Only files
+  you changed since that release conflict. If `VERSION` names no release (e.g. you started from an
+  unreleased `main`), every file that differs from the template conflicts. The commit records the
+  template as a merge parent, so later updates merge normally; merge the update PR with a merge
+  commit, not squash, to keep that link.
 - **Deleted variants:** variants you deleted come back if the template changed them. Delete them again.
 - **`.gitignore` conflicts** are resolved automatically: your lines, plus the template's missing
   ones under `# devcontainer template`.

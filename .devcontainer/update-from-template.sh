@@ -60,10 +60,18 @@ old_version="$(cat .devcontainer/VERSION 2> /dev/null || echo unknown)"
 new_version="$(git show "$target:.devcontainer/VERSION" 2> /dev/null || echo unknown)"
 echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: https://github.com/jp-schneider/agent-devcontainer/releases"
 
-# The first update has no common history ("Use this template" squashes it)
+# No common history on the first update ("Use this template" squashes it) and after a squash-merged
+# update. Then the template release named in .devcontainer/VERSION is the merge base, so only files
+# this repo changed since that release can conflict; without such a tag, unrelated histories.
 unrelated=""
+base=""
 if ! git merge-base HEAD "$target" > /dev/null; then
     unrelated="--allow-unrelated-histories"
+    if [ -z "$adopt" ] && printf '%s\n' "$old_version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+' \
+        && git fetch -q --no-tags template "refs/tags/v$old_version" 2> /dev/null; then
+        base="$(git rev-parse 'FETCH_HEAD^{commit}')"
+        echo "update-from-template: no shared history with the template (first update, or an earlier one was squash-merged); merge base: v$old_version"
+    fi
 elif [ -n "$adopt" ]; then
     echo "update-from-template: this repo already shares history with the template; run without --adopt" >&2
     exit 1
@@ -76,13 +84,26 @@ fi
 msg="Update devcontainer template to $new_version ($ref)"
 [ -z "$adopt" ] || msg="Adopt devcontainer template $new_version ($ref)"
 merge_log="$(mktemp)"
-if ! git merge --no-commit --no-ff $unrelated -m "$msg" "$target" > "$merge_log" 2>&1; then
-    if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
-        cat "$merge_log" >&2
-        rm -f "$merge_log"
-        echo "update-from-template: merge did not start, see git's message above" >&2
-        exit 1
+if [ -n "$base" ]; then
+    # git merge can't take an explicit base: the same merge by hand. read-tree merges the trees into
+    # index and working tree (refusing, before changing anything, if untracked files are in the way),
+    # merge-index the files changed on both sides (conflicts stay unmerged, with markers). MERGE_HEAD
+    # and MERGE_MSG make the next `git commit` a merge with the template as parent, so the following
+    # update has a common ancestor again.
+    if git read-tree -m -u "$base" HEAD "$target" > "$merge_log" 2>&1; then
+        git merge-index -o -q git-merge-one-file -a >> "$merge_log" 2>&1 || true
+        git update-ref ORIG_HEAD HEAD
+        printf '%s\n' "$target" > "$(git rev-parse --git-path MERGE_HEAD)"
+        printf '%s\n' "$msg" > "$(git rev-parse --git-path MERGE_MSG)"
     fi
+else
+    git merge --no-commit --no-ff $unrelated -m "$msg" "$target" > "$merge_log" 2>&1 || true
+fi
+if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+    cat "$merge_log" >&2
+    rm -f "$merge_log"
+    echo "update-from-template: merge did not start, see git's message above" >&2
+    exit 1
 fi
 rm -f "$merge_log"
 

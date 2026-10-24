@@ -16,6 +16,11 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   now dropped like other template additions there. git's own merge report, which listed every such
   file and every changed template-only file as "deleted in HEAD and modified", is no longer
   printed; the script's final list of remaining conflicts is (unless the merge doesn't start).
+- **`update-from-template.sh` conflicted on files you never changed** on the first update and after
+  a squash-merged one (no common history with the template, so every file that differs
+  conflicted). It now uses the template release in `.devcontainer/VERSION` as the merge base, so
+  only files you changed since that release conflict, and the commit links the histories again.
+  Without a release tag for `VERSION` it merges as before.
 - **`update-from-template.sh` refused to run with dirty submodules.** Changes inside submodules and
   unstaged new submodule commits no longer count as a dirty working tree (the template has no
   submodules, and only staged changes are committed); anything staged still does.
