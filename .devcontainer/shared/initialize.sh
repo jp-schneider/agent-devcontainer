@@ -43,7 +43,9 @@ echo "WORKTREE_NAME=$(basename "$PWD")" >> .devcontainer/shared/.env
 # Compose project names allow only [a-z0-9_-]; lowercase and strip the rest
 echo "PROJECT_SLUG=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')" >> .devcontainer/shared/.env
 
-echo "GIT_MAIN_REPO_PATH=$(realpath "$(git rev-parse --git-common-dir 2>/dev/null)/.." 2>/dev/null || echo "$PWD")" >> .devcontainer/shared/.env
+# The common gitdir, mounted at its own path: <main>/.git for worktrees, <super>/.git/modules/<name>
+# when the workspace is a submodule (protect-paths.sh rewrites the relative pointers into it)
+echo "GIT_COMMON_DIR=$(realpath "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null || echo "$PWD/.git")" >> .devcontainer/shared/.env
 echo "LOCAL_WORKSPACE_FOLDER=$PWD" >> .devcontainer/shared/.env
 echo "HOST_HOME=$HOME" >> .devcontainer/shared/.env
 echo "HOST_UID=$(id -u)" >> .devcontainer/shared/.env

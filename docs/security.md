@@ -64,25 +64,46 @@ could escape the container the next time you start it or use git there.
 |---|---|---|
 | `/app/.devcontainer/` | scripts run on the host; compose files can grant `privileged`, host mounts | read-only |
 | `.git/hooks/`, `.git/config` | hooks, `core.hooksPath`, `core.fsmonitor`, filters, aliases run on the host | read-only. Commits work; `git config`, `push -u`, tracking branches and `submodule init` fail |
-| `.git/modules/` | submodule gitdirs have their own hooks/config | read-only; the agent can't commit **inside** submodules |
+| `.git/commondir` (every protected gitdir) | git reads it in **any** gitdir and then takes `config` and `hooks/` from the directory it names | read-only placeholder `.` (the gitdir itself), created on the host if missing. A start aborts if the workspace's or an allowlisted repo's gitdir has another one |
+| `.git/modules/` | submodule gitdirs have their own hooks/config | read-only; the agent can't commit **inside** submodules, unless `DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1` (below) |
 | `.git/worktrees/` | `commondir`/`gitdir` redirect a worktree's git to another gitdir | read-only, except the current worktree's own entry (its `commondir`, `gitdir`, `config.worktree`, `modules/` stay read-only); `git worktree add` fails |
-| `/app/.git` (linked worktree) | pointer file; redirecting it changes which gitdir host git uses | read-only |
+| `/app/.git` (linked worktree, submodule workspace) | pointer file; redirecting it changes which gitdir host git uses | read-only (submodule workspace: a generated pointer, see below) |
 | `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` | hooks and MCP servers run when Claude Code runs **on the host**; permission rules | read-only; in-container "always allow" approvals don't persist |
 | `.vscode/` | tasks (`runOn: folderOpen`), interpreter and terminal settings in the host VS Code | read-only |
+| the above in known nested repos: `<dir>/.devcontainer/`, `<dir>/.vscode/`, `<dir>/.claude/settings*.json`, `<dir>/.mcp.json` | the nested repo can be opened on the host on its own (devcontainer, VS Code, Claude Code) | read-only; the rest of `<dir>/.claude/` stays writable |
 | files matching `mask-patterns.txt` (anywhere in the workspace): `.env*`, `*.env`, private keys, `.netrc`/`.npmrc`/`.pypirc`, cloud credentials, `secrets.*`, tfvars/tfstate | host-only config and secrets | masked with `/dev/null` (empty, read-only). The host copy is untouched. Exceptions: `container.env`, `.env.example/.sample/.template`, the generated `shared/.env` |
 
 The main gitdir is reachable at **two** container paths in the main worktree: its absolute host
 path (worktree support mount) and `/app/.git`. Both are covered.
 
+**Workspace that is a submodule:** its gitdir `<super>/.git/modules/<name>` is mounted at its host
+path; the superproject isn't. Its relative `.git` pointer and `core.worktree` don't resolve from
+`/app`, so `/app/.git` and the gitdir's `config` are read-only binds of generated files
+(`.devcontainer/.generated/git-links/`, inside the read-only `.devcontainer/`). The generated
+`config` includes the host config through a read-only bind of the whole gitdir at
+`/opt/host-gitdir` (a directory bind, so host edits stay visible), then sets `core.worktree`.
+Nested submodules' pointers and configs are replaced the same way. Nothing becomes writable that
+isn't for a normal repo.
+
 **Placeholders:** paths that don't exist yet can't be mounted read-only, so the script creates
 them first: an empty `.vscode/`, `.claude/settings*.json` = `{}`, `.mcp.json` =
-`{"mcpServers": {}}`, `.env`, and `.git/{hooks,modules,worktrees}/`.
+`{"mcpServers": {}}`, `.env`, `.git/{hooks,modules,worktrees}/` and `.git/commondir` = `.`.
 
 **Template development switch:** `DEVCONTAINER_EDITABLE_BY_AGENT=1` in `.env` (host-only, so the
 agent can neither read nor set it) leaves `.devcontainer/` writable. Every start prints a warning.
 This **removes the trust anchor**: the agent can then change what runs on the host at the next
 start. Use it only in the template repo, and review `git diff -- .devcontainer` before restarting.
 All other protections stay in place.
+
+**Commits inside submodules:** `DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1` in `.env` (host-only) makes
+each checked-out submodule's gitdir writable, at every container path of the main gitdir, with the
+same protection as the main gitdir: its `hooks/`, `config`, `modules/`, `worktrees/` and `commondir`
+stay read-only. Nested submodules are covered the same way. `modules/` itself stays read-only, so
+no new gitdir can be created there: the nested-repo scan trusts every pointer into `modules/`, so a
+writable `modules/` would let the agent plant a "submodule" with its own hooks. Every start prints a
+warning. Trade-off: the agent can rewrite the submodules' history and refs (as it can the main
+repo's); a submodule added while the container runs stays read-only until the next start, and
+`git submodule add`/`init` still fail.
 
 **Nested repositories:** host git run inside a nested repo uses *that* repo's hooks and config.
 It does so automatically, too: host VS Code detects repos in subfolders, and git-aware prompts run
@@ -91,6 +112,12 @@ It does so automatically, too: host VS Code detects repos in subfolders, and git
   read-only `modules/`) or a directory listed in `.devcontainer/allowed-nested-git.txt`, which is
   read-only to the agent. Their `hooks/`, `config`, `modules/` and `worktrees/` are read-only. So
   are all `.git` pointer files, including the gitdir of an allowlisted pointer if it lies in the workspace.
+- **Their host-trusted paths too.** A nested repo can be opened on the host on its own: as a
+  devcontainer (its `initializeCommand` runs on the host), in VS Code, with Claude Code. So its
+  `.devcontainer/` (always; `DEVCONTAINER_EDITABLE_BY_AGENT` applies to the workspace only),
+  `.vscode/`, `.claude/settings*.json` and `.mcp.json` are read-only, with the same placeholders.
+  Placeholder directories are empty, which git ignores; placeholder files show as untracked in the
+  nested repo. That is the price for having no gap: without them the agent could create the file.
 - **Unknown nested repos abort the container start.** These are exactly the ones planted since the
   allowlist was last approved on the host.
 - **Creating repos can't be prevented** on a read-write mount: `git init`, `clone`, `mkdir .git`
@@ -139,8 +166,8 @@ be hidden with this design:
 - **`/proc/self/mountinfo`** lists every bind mount with its host source path: home directory,
   repo path, volume paths. It also shows which files are masked (`/null -> /app/.env`). Every
   process can read it, and Docker doesn't mask it.
-- **Absolute host paths in the container are unavoidable:** the main repo's `.git` is mounted at
-  its real host path so git worktrees resolve.
+- **Absolute host paths in the container are unavoidable:** the common gitdir is mounted at
+  its real host path so git worktrees and submodule workspaces resolve.
 - **The generated overlays are readable:** `.devcontainer/.generated/compose.{host,protect}.yml`.
   `shared/.env` and `compose.resolved.yml` are masked, because they contain interpolated `.env` values.
 
@@ -151,7 +178,7 @@ encode secrets in paths or directory names.
 - **Passed in:** only `container.env` (`env_file`) plus variables an overlay passes explicitly
   (e.g. `UV_VENVS_ROOT`, `UV_PROJECT_ENVIRONMENT` from `toolchains/uv/compose.yml`).
 - **Not passed in:** the host-side values in `shared/.env` (`HOST_HOME`, `HOST_UID`/`GID`,
-  `LOCAL_WORKSPACE_FOLDER`, `GIT_MAIN_REPO_PATH`, `WORKTREE_NAME`, `PROJECT_SLUG`,
+  `LOCAL_WORKSPACE_FOLDER`, `GIT_COMMON_DIR`, `WORKTREE_NAME`, `PROJECT_SLUG`,
   everything copied from `.env`). They are only used for compose interpolation. This is tidiness, not
   confidentiality: see above.
 

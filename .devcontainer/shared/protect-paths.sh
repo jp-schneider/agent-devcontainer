@@ -27,35 +27,58 @@ if [ ! -f "$defaults_patterns" ]; then
     exit 1
 fi
 
-# --- Placeholders: a path must exist to be bind-mounted read-only
-mkdir -p .vscode .claude
-# settings.json starts from the template default: Read/Edit deny rules for secret files, mirroring
-# mask-patterns.txt as globs (matters for Claude Code run on the host; keep both in sync)
-[ -e .claude/settings.json ] || cp "$(dirname "$defaults_patterns")/claude-settings.default.json" .claude/settings.json
-[ -e .claude/settings.local.json ] || echo '{}' > .claude/settings.local.json
-[ -e .mcp.json ] || echo '{"mcpServers": {}}' > .mcp.json
-
-# --- Git layout. Mirrors GIT_MAIN_REPO_PATH in initialize.sh: the main repo's .git
-# is mounted at the same absolute path (and is also /app/.git in the main worktree).
+# --- Git layout. Mirrors GIT_COMMON_DIR in initialize.sh: the common gitdir is mounted
+# at the same absolute path (and is also /app/.git in the main worktree).
 main_git=""
 self_git=""
 if common="$(git rev-parse --git-common-dir 2> /dev/null)"; then
     main_git="$(cd "$common" && pwd -P)"
     self_git="$(cd "$(git rev-parse --git-dir)" && pwd -P)"
 fi
+# git reads commondir in any gitdir and then takes config and hooks from the directory it names, so a
+# planted one in the workspace's gitdir would also make main_git above point there. Only a linked
+# worktree (a .git file) has a gitdir that differs from main_git, and it is main_git/worktrees/<name>.
+if [ -e "$ws/.git" ]; then
+    gitdir_ok=0
+    if [ -n "$main_git" ] && [ "$self_git" = "$main_git" ]; then
+        gitdir_ok=1
+    elif [ -n "$main_git" ] && [ -f "$ws/.git" ]; then
+        case "$self_git" in "$main_git"/worktrees/*) gitdir_ok=1 ;; esac
+    fi
+    if [ "$gitdir_ok" = 0 ]; then
+        echo "protect-paths: ABORT, git doesn't resolve this workspace's repository to its own gitdir:" >&2
+        echo "  gitdir: ${self_git:-?}, common dir: ${main_git:-?}" >&2
+        echo "A 'commondir' file in the gitdir makes git use another directory's config and hooks." >&2
+        echo "Check it on the host; if you didn't create it, remove it." >&2
+        exit 1
+    fi
+fi
+# Gitdir outside the workspace and not a linked worktree's: the workspace is a submodule
+# (<super>/.git/modules/<name>) or uses --separate-git-dir. Its .git pointer and core.worktree
+# can be relative to the host layout and are replaced (see relink below).
+external=0
+if [ -n "$main_git" ] && [ "$self_git" = "$main_git" ] && [ "$main_git" != "$ws/.git" ]; then
+    external=1
+fi
+
+# resolve_pointer <.git file>: the gitdir it points to, physical path; empty if unresolvable
+resolve_pointer() {
+    local gitdir
+    gitdir="$(sed -n 's/^gitdir: //p' "$1" | head -n 1)"
+    (cd "$(dirname "$1")" 2> /dev/null && cd "$gitdir" 2> /dev/null && pwd -P) || true
+}
 
 # --- Nested repositories. Known ones are protected like the main repo; unknown ones abort.
 violations=""
 nested_gitdirs="" # host gitdirs of allowlisted nested repos inside the workspace
 pointers=""       # workspace-relative .git pointer files (submodules, allowlisted)
+trees=""          # workspace-relative working trees of known nested repos
 while IFS= read -r g; do
     rel="${g#./}"
     resolved=""
-    if [ -f "$g" ]; then
-        gitdir="$(sed -n 's/^gitdir: //p' "$g" | head -n 1)"
-        resolved="$(cd "$(dirname "$g")" 2> /dev/null && cd "$gitdir" 2> /dev/null && pwd -P)" || resolved=""
-    fi
+    [ -f "$g" ] && resolved="$(resolve_pointer "$g")"
     if [ -f "$allowlist" ] && grep -qxF "$(dirname "$rel")" "$allowlist"; then
+        trees="${trees}$(dirname "$rel")"$'\n'
         if [ -d "$g" ]; then
             nested_gitdirs="${nested_gitdirs}${ws}/${rel}"$'\n'
         else
@@ -76,6 +99,7 @@ while IFS= read -r g; do
         case "$resolved" in
             "$main_git"/modules/* | "$self_git"/modules/*)
                 pointers="${pointers}${rel}"$'\n'
+                trees="${trees}$(dirname "$rel")"$'\n'
                 continue
                 ;;
         esac
@@ -105,12 +129,60 @@ bind() { # <host-source> <container-target> <read_only: true|false>
     printf '      - type: bind\n        source: %s\n        target: %s\n        read_only: %s\n' \
         "$(quote "$1")" "$(quote "$2")" "$3" >> "$tmp"
 }
-protect_gitdir() { # <host-gitdir> <container-gitdir>: everything in it that host git executes or follows
+# protect_trusted <prefix>: paths in a working tree that the host trusts when it is opened on its own
+# (VS Code, Claude Code); "" for the workspace, "<dir>/" for a nested repo. A path must exist to be
+# bind-mounted read-only, so missing ones get placeholders. settings.json starts from the template
+# default: Read/Edit deny rules for secret files, mirroring mask-patterns.txt as globs (matters for
+# Claude Code run on the host; keep both in sync)
+protect_trusted() {
+    mkdir -p "$1.vscode" "$1.claude"
+    [ -e "$1.claude/settings.json" ] || cp "$(dirname "$defaults_patterns")/claude-settings.default.json" "$1.claude/settings.json"
+    [ -e "$1.claude/settings.local.json" ] || echo '{}' > "$1.claude/settings.local.json"
+    [ -e "$1.mcp.json" ] || echo '{"mcpServers": {}}' > "$1.mcp.json"
+    bind "$ws/$1.vscode" "/app/$1.vscode" true
+    bind "$ws/$1.claude/settings.json" "/app/$1.claude/settings.json" true
+    bind "$ws/$1.claude/settings.local.json" "/app/$1.claude/settings.local.json" true
+    bind "$ws/$1.mcp.json" "/app/$1.mcp.json" true
+}
+protect_gitdir() { # <host-gitdir> <container-gitdir> [<config-source>]: everything in it that host git executes or follows
     mkdir -p "$1/hooks" "$1/modules" "$1/worktrees"
+    # git reads commondir in any gitdir and then takes config and hooks from the directory it names.
+    # Placeholder "." (this gitdir itself; an empty file breaks git). A main gitdir never has another one.
+    [ -e "$1/commondir" ] || echo . > "$1/commondir"
+    if [ "$(cat "$1/commondir" 2> /dev/null)" != . ]; then
+        echo "protect-paths: ABORT, $1/commondir redirects git to another config and hooks:" >&2
+        echo "  $(cat "$1/commondir" 2> /dev/null)" >&2
+        echo "Check it on the host; if you didn't create it, remove it (or replace its content with '.')." >&2
+        rm -f "$tmp"
+        exit 1
+    fi
     bind "$1/hooks" "$2/hooks" true
-    bind "$1/config" "$2/config" true
+    bind "${3:-$1/config}" "$2/config" true
     bind "$1/modules" "$2/modules" true
     bind "$1/worktrees" "$2/worktrees" true
+    bind "$1/commondir" "$2/commondir" true
+}
+
+# Relinked gitdirs (gitdir outside the workspace, mounted at its own path; see external above):
+# relink <host-gitdir> <container-worktree> writes $link.git, a pointer with the absolute gitdir,
+# and $link.config, which includes the host config and then sets core.worktree. The include reads
+# the host config through a read-only bind of main_git at $host_git_view, so host changes stay
+# live (git rewrites config by rename; a single-file bind would keep the old inode).
+links="$(cd "$(dirname "$out")" && pwd -P)/git-links"
+host_git_view=/opt/host-gitdir
+rm -rf "$links"
+n=0
+link=""
+gitconfig_quote() { # double-quoted git config value
+    printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"
+}
+relink() {
+    mkdir -p "$links"
+    n=$((n + 1))
+    link="$links/$n"
+    printf 'gitdir: %s\n' "$1" > "$link.git"
+    printf '[include]\n\tpath = %s\n[core]\n\tworktree = %s\n' \
+        "$(gitconfig_quote "$host_git_view${1#"$main_git"}/config")" "$(gitconfig_quote "$2")" > "$link.config"
 }
 
 cat > "$tmp" <<'EOF'
@@ -132,10 +204,23 @@ if grep -qx 'DEVCONTAINER_EDITABLE_BY_AGENT=1' .env 2> /dev/null; then
 else
     bind "$ws/.devcontainer" /app/.devcontainer true
 fi
-bind "$ws/.vscode" /app/.vscode true
-bind "$ws/.claude/settings.json" /app/.claude/settings.json true
-bind "$ws/.claude/settings.local.json" /app/.claude/settings.local.json true
-bind "$ws/.mcp.json" /app/.mcp.json true
+# DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1 in .env: commits inside submodules (see the pointer loop)
+submodules_writable=0
+if grep -qx 'DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1' .env 2> /dev/null; then
+    submodules_writable=1
+    echo "protect-paths: WARNING submodule gitdirs are writable by the agent (DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1 in .env);" >&2
+    echo "protect-paths: WARNING their hooks, config, modules/, worktrees/ and commondir stay read-only." >&2
+fi
+protect_trusted ""
+# Known nested repos can be opened on the host on their own (as a devcontainer, too), so the same
+# paths; their .devcontainer/ always (the switch above is for this workspace only). Empty
+# placeholder dirs don't show in git; placeholder files show as untracked in the nested repo.
+while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    mkdir -p "$d/.devcontainer"
+    bind "$ws/$d/.devcontainer" "/app/$d/.devcontainer" true
+    protect_trusted "$d/"
+done <<< "$trees"
 
 # Secrets and host-only files: /dev/null over every file matching mask-patterns.txt
 # (template defaults next to this script + optional project file; "!" lines allow)
@@ -157,13 +242,21 @@ resolved="$ws/.devcontainer/.generated/compose.resolved.yml"
 [ -e "$resolved" ] || : > "$resolved"
 bind /dev/null /app/.devcontainer/.generated/compose.resolved.yml true
 
+targets="" # container paths of main_git
 if [ -n "$main_git" ]; then
+    config="$main_git/config"
+    pointer="$ws/.git"
+    if [ "$external" = 1 ]; then
+        relink "$main_git" /app
+        config="$link.config"
+        pointer="$link.git"
+    fi
     targets="$main_git"
     # Main worktree: the same gitdir is also reachable through the workspace mount
     [ "$main_git" = "$ws/.git" ] && targets="$targets
 /app/.git"
     while IFS= read -r t; do
-        protect_gitdir "$main_git" "$t"
+        protect_gitdir "$main_git" "$t" "$config"
         if [ "$self_git" != "$main_git" ]; then
             # Linked worktree: its own gitdir stays writable (HEAD, index), its pointers don't
             name="${self_git#"$main_git"/worktrees/}"
@@ -175,18 +268,44 @@ if [ -n "$main_git" ]; then
             bind "$self_git/modules" "$t/worktrees/$name/modules" true
         fi
     done <<< "$targets"
-    # Linked worktree: the .git pointer file in the workspace
-    [ -f "$ws/.git" ] && bind "$ws/.git" /app/.git true
+    # Linked worktree or external gitdir: the .git pointer file in the workspace
+    [ -f "$ws/.git" ] && bind "$pointer" /app/.git true
 fi
 
 # Allowlisted nested repos: same protection as the main gitdir
 while IFS= read -r d; do
     [ -n "$d" ] && protect_gitdir "$d" "/app/${d#"$ws"/}"
 done <<< "$nested_gitdirs"
-# .git pointer files (submodules, allowlisted): redirecting one changes which gitdir host git uses
+# .git pointer files (submodules, allowlisted): redirecting one changes which gitdir host git uses.
+# For one into main_git (submodule gitdirs live in main_git/modules or a worktree's modules/):
+# - relinked if main_git is outside the workspace (submodules of a submodule workspace);
+# - with DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1, its gitdir is writable at every container path
+#   of main_git, protected like the main gitdir. modules/ itself stays read-only, so no new gitdir
+#   can be planted there (the scan trusts pointers into it). Nested submodules have their own
+#   pointers, so this applies recursively. Docker mounts parents before children.
 while IFS= read -r p; do
-    [ -n "$p" ] && bind "$ws/$p" "/app/$p" true
+    [ -n "$p" ] || continue
+    src="$ws/$p"
+    r=""
+    [ -n "$main_git" ] && r="$(resolve_pointer "$ws/$p")"
+    case "$r" in "$main_git"/*) ;; *) r="" ;; esac
+    config="$r/config"
+    if [ -n "$r" ] && [ "$external" = 1 ]; then
+        relink "$r" "/app/$(dirname "$p")"
+        src="$link.git"
+        config="$link.config"
+    fi
+    if [ -n "$r" ] && [ "$submodules_writable" = 1 ]; then
+        while IFS= read -r t; do
+            bind "$r" "$t${r#"$main_git"}" false
+            protect_gitdir "$r" "$t${r#"$main_git"}" "$config"
+        done <<< "$targets"
+    elif [ -n "$r" ] && [ "$config" != "$r/config" ]; then
+        bind "$config" "$r/config" true
+    fi
+    bind "$src" "/app/$p" true
 done <<< "$pointers"
+[ "$n" -gt 0 ] && bind "$main_git" "$host_git_view" true
 
 mv "$tmp" "$out"
 echo "protect-paths: wrote $out"

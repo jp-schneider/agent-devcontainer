@@ -9,7 +9,7 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
    - creates empty `.env` (host-only; its `DEVCONTAINER_*` lines become compose variables) and
      `container.env` (passed to the container) if missing;
    - rewrites `.devcontainer/shared/.env`: the `DEVCONTAINER_*` lines of `.env` (unchanged), then `WORKTREE_NAME`, `PROJECT_SLUG`,
-     `GIT_MAIN_REPO_PATH`, `LOCAL_WORKSPACE_FOLDER`, `HOST_HOME`, `HOST_UID`, `HOST_GID`;
+     `GIT_COMMON_DIR`, `LOCAL_WORKSPACE_FOLDER`, `HOST_HOME`, `HOST_UID`, `HOST_GID`;
    - writes the toolchain list (`TOOLCHAINS`) and `RESOURCE_PREFIX=agent-sandbox` (the name prefix
      of new Docker resources; older ones keep `claude-code-`), and an empty
      `.generated/mountpoints.txt`;

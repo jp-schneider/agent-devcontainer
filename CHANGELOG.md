@@ -9,6 +9,40 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-24
+
+### Security
+- **Documented: projects are told apart by folder name only.** Two checkouts with the same folder
+  name share the compose project, container, network and volumes (Claude config with login,
+  venvs), and reach each other's sidecars. New entry in
+  [Known limitations](.devcontainer/README.md#known-limitations); unique names are planned for 0.2.
+- **Host-trusted paths in submodules are read-only.** Before, only the workspace root's
+  `.devcontainer/`, `.vscode/`, `.claude/settings*.json` and `.mcp.json` were protected; the agent
+  could change them in a submodule (or allowlisted nested repo) and run code on the host when that
+  repo was opened on its own (as a devcontainer, in VS Code, with Claude Code). Now they are
+  read-only in every known nested repo; the rest of its `.claude/` stays writable. Missing settings
+  files are created as placeholders, as at the root, and show as untracked in the submodule.
+
+- **A planted `.git/commondir` could run code on the host.** git reads `commondir` in any gitdir
+  and then takes `config` and `hooks/` from the directory it names, so one file written into the
+  writable part of `.git` bypassed the read-only `config` and `hooks/` (e.g. `core.fsmonitor`, run
+  by the next `git status` on the host). Every protected gitdir now gets a read-only placeholder
+  `commondir` containing `.` (the gitdir itself; created on the host if missing), and a start
+  aborts if the workspace's or an allowlisted repo's gitdir already has another one.
+
+### Added
+- **`DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1`** (host-only `.env`): commits inside submodules from
+  the container. Checked-out submodule gitdirs, nested ones too, become writable with the main
+  repo's protection (their hooks, config, `modules/`, `worktrees/` and `commondir` stay
+  read-only); `modules/` itself stays read-only. Off by default; every start warns when it's on.
+
+### Fixed
+- **Workspace that is itself a submodule:** git works in the container. Before, the mount pointed
+  to a non-existent `<super>/.git/modules/.git` and the relative `.git` pointer didn't resolve from
+  `/app`. Now the submodule's gitdir is mounted at its host path (superproject not mounted) and
+  `/app/.git` plus the gitdir's `config` are generated (`core.worktree = /app`, host config
+  included, so it stays live); nested submodules too. `GIT_MAIN_REPO_PATH` in `shared/.env` is now
+  `GIT_COMMON_DIR` (the gitdir itself).
 ### Changed
 - **Template repo only: `prepare.sh` commits the release.** It refuses a dirty working tree
   (untracked files included), then commits `CHANGELOG.md` and `.devcontainer/VERSION` as

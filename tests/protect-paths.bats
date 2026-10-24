@@ -55,14 +55,54 @@ protect() {
     has_mount "ro $WS/.mcp.json -> /app/.mcp.json"
 }
 
-@test "main worktree: git hooks/config/modules/worktrees read-only at both container paths, nothing rw" {
+@test "main worktree: git hooks/config/modules/worktrees/commondir read-only at both container paths, nothing rw" {
     protect "$WS"
     for t in "$G" /app/.git; do
-        for x in hooks config modules worktrees; do
+        for x in hooks config modules worktrees commondir; do
             has_mount "ro $G/$x -> $t/$x"
         done
     done
     not_grep '^rw' <<< "$MOUNTS"
+    [ "$(cat "$G/commondir")" = . ]
+}
+
+@test "commondir: a planted one in the workspace gitdir aborts (target existing or not), no overlay" {
+    # Verified separately: git takes config and hooks from the directory commondir names. An
+    # existing target is what an attack looks like: git then resolves the common dir to it.
+    mkdir -p "$WORK/evil/objects" "$WORK/evil/refs"
+    printf '[core]\n\trepositoryformatversion = 0\n' > "$WORK/evil/config"
+    for target in "$WORK/evil" "$WORK/missing"; do
+        echo "$target" > "$G/commondir"
+        protect "$WS"
+        [ "$status" -ne 0 ]
+        output_has "ABORT, git doesn't resolve this workspace's repository to its own gitdir"
+        [ ! -e "$WS/$OUT" ]
+    done
+    [ ! -e "$WORK/evil/commondir" ] # nothing written into the redirect target
+}
+
+@test "commondir: a planted one in an allowlisted repo's gitdir aborts" {
+    git init -q "$WS/planted"
+    echo "planted" > "$WS/.devcontainer/allowed-nested-git.txt"
+    echo "$WORK/evil" > "$WS/planted/.git/commondir"
+    protect "$WS"
+    [ "$status" -ne 0 ]
+    output_has "ABORT, $WS/planted/.git/commondir redirects git"
+    [ ! -e "$WS/$OUT" ]
+    [ ! -e "$WS/$OUT.tmp" ]
+}
+
+@test "commondir: the '.' placeholder keeps git working (status, commit, worktree add)" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    git -C "$WS" status --short > /dev/null
+    git -C "$WS" commit -q --allow-empty -m after
+    [ "$(cd "$WS" && cd "$(git rev-parse --git-common-dir)" && pwd -P)" = "$G" ]
+    git -C "$WS" worktree add -q "$WORK/wt2" -b wt2
+    git -C "$WORK/wt2" status --short > /dev/null
+    # and a second start accepts its own placeholder
+    protect "$WS"
+    [ "$status" -eq 0 ]
 }
 
 @test "env files: masked except container.env and .env.example" {
@@ -89,6 +129,7 @@ protect() {
     [ "$status" -ne 0 ]
     output_has "  planted/.git"
     [ ! -e "$WS/$OUT" ]
+    [ ! -e "$WS/planted/.mcp.json" ] # no placeholders in an unknown repo
 }
 
 @test "deeply nested planted repo: aborts" {
@@ -126,7 +167,7 @@ protect() {
     echo "planted" > "$WS/.devcontainer/allowed-nested-git.txt"
     protect "$WS"
     [ "$status" -eq 0 ]
-    for x in hooks config modules worktrees; do
+    for x in hooks config modules worktrees commondir; do
         has_mount "ro $WS/planted/.git/$x -> /app/planted/.git/$x"
     done
 }
@@ -142,6 +183,157 @@ protect() {
     has_mount "ro $WS/gd/ext/config -> /app/gd/ext/config"
 }
 
+# has_trusted <workspace> <dir>: the root's host-trusted paths are read-only in the nested tree <dir>
+has_trusted() {
+    local p
+    for p in .devcontainer .vscode .claude/settings.json .claude/settings.local.json .mcp.json; do
+        has_mount "ro $1/$2/$p -> /app/$2/$p" || return 1
+    done
+}
+
+@test "submodule: host-trusted paths read-only with placeholders; rest of its .claude writable" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" sub
+    [ -d "$WS/sub/.devcontainer" ]
+    [ -d "$WS/sub/.vscode" ]
+    cmp -s "$WS/sub/.claude/settings.json" "$SHARED/claude-settings.default.json"
+    [ "$(cat "$WS/sub/.claude/settings.local.json")" = "{}" ]
+    grep -q mcpServers "$WS/sub/.mcp.json"
+    [ "$(grep -c -- '-> /app/sub/\.claude' <<< "$MOUNTS")" -eq 2 ]
+}
+
+@test "submodule: existing host-trusted files are kept" {
+    mkdir -p "$WS/sub/.devcontainer" "$WS/sub/.claude"
+    echo '{"name": "sub"}' > "$WS/sub/.devcontainer/devcontainer.json"
+    echo '{"permissions": {}}' > "$WS/sub/.claude/settings.json"
+    echo '{"mcpServers": {"x": {}}}' > "$WS/sub/.mcp.json"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" sub
+    [ "$(cat "$WS/sub/.devcontainer/devcontainer.json")" = '{"name": "sub"}' ]
+    [ "$(cat "$WS/sub/.claude/settings.json")" = '{"permissions": {}}' ]
+    [ "$(cat "$WS/sub/.mcp.json")" = '{"mcpServers": {"x": {}}}' ]
+}
+
+@test "allowlisted repo dir and pointer: host-trusted paths read-only, not in the separate gitdir" {
+    git init -q "$WS/planted"
+    mkdir -p "$WS/gd"
+    git init -q --separate-git-dir="$WS/gd/ext" "$WS/ext"
+    printf '%s\n' planted ext > "$WS/.devcontainer/allowed-nested-git.txt"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" planted
+    has_trusted "$WS" ext
+    [ ! -e "$WS/gd/ext/.vscode" ]
+    not_grep -- '-> /app/gd/ext/\.' <<< "$MOUNTS"
+}
+
+# --- B2: the workspace is a submodule (gitdir in the superproject, relative pointers)
+
+# submodule_ws <superproject-dir> [<nested-path>]: $SUP with the repo $LIB as submodule "proj" (absorbed
+# gitdir), which has a nested submodule (default "inner", a clone of $WS, so it has its own submodule
+# "sub"); sets SUP, B (the workspace), M (its gitdir), L (generated links)
+submodule_ws() {
+    SUP="$1"
+    new_repo "$SUP"
+    git -C "$LIB" -c protocol.file.allow=always submodule -q add "$WS" "${2:-inner}"
+    git -C "$LIB" commit -q -m inner
+    git -C "$SUP" -c protocol.file.allow=always submodule -q add "$LIB" proj
+    git -C "$SUP" -c protocol.file.allow=always submodule -q update --init --recursive
+    B="$SUP/proj"
+    M="$SUP/.git/modules/proj"
+    L="$B/.devcontainer/.generated/git-links"
+    mkdir -p "$B/.devcontainer"
+}
+
+# link_for <container .git target>: $L/<n> of the generated pointer bound there (fails if none). Nested
+# pointers are numbered in find order, which differs between filesystems (APFS vs ext4).
+link_for() {
+    local src
+    src="$(T="$1" awk '{ i = index($0, " -> "); if (substr($0, i + 4) == ENVIRON["T"]) print substr($0, 4, i - 4) }' <<< "$MOUNTS")"
+    src="${src//\$\$/\$}" # compose's $ escape, kept in the parsed YAML
+    case "$src" in
+        "$L"/*.git) printf '%s\n' "${src%.git}" ;;
+        *)
+            printf 'no generated pointer bound to %s (source: %s)\n--- mounts:\n%s\n' "$1" "$src" "$MOUNTS" >&2
+            return 1
+            ;;
+    esac
+}
+
+@test "submodule workspace: pointer and config replaced, gitdir protected at its own path only" {
+    submodule_ws "$WORK/super"
+    grep -qx 'gitdir: ../.git/modules/proj' "$B/.git" # the layout this is about
+    protect "$B"
+    [ "$status" -eq 0 ]
+    has_mount "ro $L/1.git -> /app/.git"
+    has_mount "ro $L/1.config -> $M/config"
+    for x in hooks modules worktrees commondir; do
+        has_mount "ro $M/$x -> $M/$x"
+    done
+    has_mount "ro $M -> /opt/host-gitdir"
+    not_grep -- '-> /app/.git/' <<< "$MOUNTS"
+    not_grep "$SUP/\.git/config\|-> $SUP/\.git ->" <<< "$MOUNTS"
+    not_grep '^rw' <<< "$MOUNTS"
+    [ "$(cat "$L/1.git")" = "gitdir: $M" ]
+    [ "$(git config -f "$L/1.config" include.path)" = /opt/host-gitdir/config ]
+    [ "$(git config -f "$L/1.config" core.worktree)" = /app ]
+}
+
+@test "submodule workspace: nested submodule pointer and config relinked" {
+    submodule_ws "$WORK/super"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    # <dir> <gitdir relative to M>; spelled out, bash 3.2 keeps the backslashes of ${d//\//\/modules\/}
+    while read -r d rg; do
+        g="$M/$rg"
+        k="$(link_for "/app/$d/.git")"
+        has_mount "ro $k.config -> $g/config"
+        [ "$(cat "$k.git")" = "gitdir: $g" ]
+        [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir${g#"$M"}/config" ]
+        [ "$(git config -f "$k.config" core.worktree)" = "/app/$d" ]
+        has_trusted "$B" "$d"
+    done << 'EOF'
+inner modules/inner
+inner/sub modules/inner/modules/sub
+EOF
+}
+
+@test "submodule workspace: generated files make git work at another worktree path, host config live" {
+    submodule_ws "$WORK/super"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    # What the container sees, with its paths moved under $C: the workspace at $C/app, the gitdir
+    # (config replaced by the generated one) and the read-only view of it
+    C="$WORK/ctr"
+    mkdir -p "$C/app"
+    cp -R "$M" "$C/gitdir"
+    sed "s|/opt/host-gitdir|$M|; s|= /app|= $C/app|" "$L/1.config" > "$C/gitdir/config"
+    echo "gitdir: $C/gitdir" > "$C/app/.git"
+    [ "$(git -C "$C/app" rev-parse --show-toplevel)" = "$C/app" ]
+    git -C "$B" remote add probe /nonexistent
+    git -C "$C/app" remote | grep -qx probe
+}
+
+@test "submodule workspace: awkward paths; nested path quoted in the generated config" {
+    N='in \"q\" #;x\\y'
+    submodule_ws "$WORK/sup 'q' \$HOME" "$N"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$L/1.git")" = "gitdir: $M" ]
+    k="$(link_for "/app/$N/.git")"
+    [ "$(cat "$k.git")" = "gitdir: $M/modules/$N" ]
+    [ "$(git config -f "$k.config" core.worktree)" = "/app/$N" ]
+    [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir/modules/$N/config" ]
+}
+
+@test "main worktree: no relinked files, no gitdir view" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    not_grep 'git-links\|/opt/host-gitdir' <<< "$MOUNTS"
+}
+
 # --- C: linked worktree
 
 @test "linked worktree: main gitdir only at its absolute path, own entry rw with ro pointers" {
@@ -151,6 +343,8 @@ protect() {
     [ "$status" -eq 0 ]
     S="$G/worktrees/wt"
     has_mount "ro $G/hooks -> $G/hooks"
+    has_mount "ro $G/commondir -> $G/commondir"
+    [ "$(cat "$S/commondir")" = ../.. ] # the worktree's own one is real and stays
     not_grep -- '-> /app/.git/hooks' <<< "$MOUNTS"
     has_mount "rw $S -> $S"
     has_mount "ro $S/commondir -> $S/commondir"
@@ -194,12 +388,84 @@ protect() {
 
 # --- F: template development switch
 
+# --- F2: DEVCONTAINER_GIT_SUBMODULES_WRITABLE
+
+# no_duplicate_targets: every container path in $MOUNTS is bound once (compose refuses duplicates)
+no_duplicate_targets() {
+    local dup
+    dup="$(sed 's/.* -> //' <<< "$MOUNTS" | LC_ALL=C sort | uniq -d)"
+    [ -z "$dup" ] && return 0
+    printf 'duplicate mount targets:\n%s\n' "$dup" >&2
+    return 1
+}
+
+@test "submodules writable: off by default and with =0, submodule gitdir only under read-only modules/" {
+    for v in "" "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=0"; do
+        [ -z "$v" ] || echo "$v" >> "$WS/.env"
+        protect "$WS"
+        [ "$status" -eq 0 ]
+        not_grep '^rw' <<< "$MOUNTS"
+        not_grep -- "-> $G/modules/sub" <<< "$MOUNTS"
+        [ ! -e "$G/modules/sub/commondir" ]
+    done
+}
+
+@test "submodules writable: =1 warns; gitdir rw at both container paths, its host-executed parts ro" {
+    echo "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1" >> "$WS/.env"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    output_has "WARNING submodule gitdirs are writable"
+    S="$G/modules/sub"
+    for t in "$G" /app/.git; do
+        has_mount "ro $G/modules -> $t/modules" # no new gitdirs
+        has_mount "rw $S -> $t/modules/sub"
+        for x in hooks config modules worktrees commondir; do
+            has_mount "ro $S/$x -> $t/modules/sub/$x"
+        done
+    done
+    [ "$(cat "$S/commondir")" = . ]
+    [ "$(grep -c '^rw' <<< "$MOUNTS")" = 2 ]
+    no_duplicate_targets
+}
+
+@test "submodules writable: =1 in a submodule workspace, nested levels too, relinked config used" {
+    submodule_ws "$WORK/super"
+    echo "DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1" >> "$B/.env"
+    protect "$B"
+    [ "$status" -eq 0 ]
+    while read -r d rg; do
+        g="$M/$rg"
+        k="$(link_for "/app/$d/.git")"
+        has_mount "rw $g -> $g"
+        has_mount "ro $k.config -> $g/config"
+        for x in hooks modules worktrees commondir; do
+            has_mount "ro $g/$x -> $g/$x"
+        done
+    done << 'EOF'
+inner modules/inner
+inner/sub modules/inner/modules/sub
+EOF
+    has_mount "ro $M/modules -> $M/modules"
+    [ "$(grep -c '^rw' <<< "$MOUNTS")" = 2 ]
+    no_duplicate_targets
+}
+
+@test "negative control: no_duplicate_targets catches a duplicate" {
+    MOUNTS="ro /a -> /x
+ro /b -> /x"
+    if no_duplicate_targets 2> /dev/null; then
+        echo "no_duplicate_targets missed a duplicate" >&2
+        return 1
+    fi
+}
+
 @test "DEVCONTAINER_EDITABLE_BY_AGENT=1: warns, .devcontainer writable, rest still protected" {
     echo "DEVCONTAINER_EDITABLE_BY_AGENT=1" >> "$WS/.env"
     protect "$WS"
     [ "$status" -eq 0 ]
     output_has "WARNING .devcontainer/ is writable"
     not_grep -- '-> /app/.devcontainer$' <<< "$MOUNTS"
+    has_mount "ro $WS/sub/.devcontainer -> /app/sub/.devcontainer" # the switch is for the workspace only
     has_mount "ro $G/hooks -> /app/.git/hooks"
     has_mount "ro /dev/null -> /app/.env"
 }
