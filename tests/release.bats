@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# .github/release/prepare.sh: VERSION bump, CHANGELOG [Unreleased] → [X.Y.Z] - date, release notes
-# on stdout; refusals leave both files untouched.
+# .github/release/prepare.sh: VERSION bump, CHANGELOG [Unreleased] → [X.Y.Z] - date, release commit,
+# release notes on stdout; refusals leave both files and the history untouched.
 
 load helpers
 
@@ -30,6 +30,9 @@ Intro.
 - First.
 EOF
     cp "$R/CHANGELOG.md" "$WORK/CHANGELOG.orig"
+    git -C "$R" init -q
+    git -C "$R" add -A
+    git -C "$R" commit -q -m init
 }
 
 teardown() {
@@ -44,10 +47,11 @@ _prepare() {
     cd "$R" && "$BASH_UNDER_TEST" "$PREPARE" "$@"
 }
 
-# untouched: CHANGELOG and VERSION are as set up (chained: errexit is off inside `if`)
+# untouched: CHANGELOG and VERSION are as set up, no commit added (chained: errexit is off inside `if`)
 untouched() {
     cmp -s "$R/CHANGELOG.md" "$WORK/CHANGELOG.orig" \
-        && [ "$(cat "$R/.devcontainer/VERSION")" = "0.1.0" ]
+        && [ "$(cat "$R/.devcontainer/VERSION")" = "0.1.0" ] \
+        && [ "$(git -C "$R" rev-list --count HEAD)" = 1 ]
 }
 
 @test "release: VERSION set, [Unreleased] dated, fresh empty [Unreleased] above it" {
@@ -84,10 +88,12 @@ untouched() {
     output_has "already has a section for 0.1.0"
     untouched
     # A longer version with the same prefix is a different version: [0.1.10] doesn't block 0.1.1
-    sed -i.bak 's/^## \[0\.1\.0\]/## [0.1.10]/' "$R/CHANGELOG.md"
+    sed -i.bak 's/^## \[0\.1\.0\]/## [0.1.10]/' "$R/CHANGELOG.md" && rm "$R/CHANGELOG.md.bak"
+    git -C "$R" commit -q -am "0.1.10"
     prepare 0.1.1 2026-10-21
     [ "$status" -eq 0 ]
     printf '# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-01\n' > "$R/CHANGELOG.md"
+    git -C "$R" commit -q -am "empty unreleased"
     prepare 0.3.0 2026-10-21
     [ "$status" -eq 1 ]
     output_has "is empty"
@@ -97,10 +103,43 @@ untouched() {
     # Format only: right after a release [Unreleased] is empty, so add an entry to the copy first
     awk '{ print } /^## \[Unreleased\]/ { print ""; print "- format check entry" }' \
         "$REPO_ROOT/CHANGELOG.md" > "$R/CHANGELOG.md"
+    git -C "$R" commit -q -am "format check"
     prepare 99.0.0 2026-10-21
     [ "$status" -eq 0 ]
     [ "$(printf '%s\n' "$output" | head -n 1)" = "- format check entry" ]
     grep -qx '## \[99.0.0\] - 2026-10-21' "$R/CHANGELOG.md"
+}
+
+@test "release: commits exactly CHANGELOG and VERSION as 'Release vX.Y.Z', tree clean" {
+    prepare 0.2.0 2026-10-21
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$R" log -1 --format=%s)" = "Release v0.2.0" ]
+    [ "$(git -C "$R" diff --name-only HEAD~1 HEAD | LC_ALL=C sort | tr '\n' ' ')" = ".devcontainer/VERSION CHANGELOG.md " ]
+    [ -z "$(git -C "$R" status --porcelain)" ]
+}
+
+@test "release: refuses a dirty tree (tracked change or untracked file), files untouched" {
+    echo "x" > "$R/other"
+    prepare 0.2.0 2026-10-21
+    [ "$status" -ne 0 ]
+    output_has "working tree not clean, commit or stash first"
+    untouched
+    rm "$R/other"
+    sed -i.bak 's/Intro/Intro2/' "$R/CHANGELOG.md" && rm "$R/CHANGELOG.md.bak"
+    cp "$R/CHANGELOG.md" "$WORK/CHANGELOG.orig"
+    prepare 0.2.0 2026-10-21
+    [ "$status" -ne 0 ]
+    output_has "working tree not clean"
+    untouched
+}
+
+@test "release: refuses outside a git repository, files untouched" {
+    rm -rf "$R/.git"
+    run env GIT_CEILING_DIRECTORIES="$WORK" "$BASH_UNDER_TEST" -c 'cd "$1" && "$2" "$3" 0.2.0 2026-10-21' _ \
+        "$R" "$BASH_UNDER_TEST" "$PREPARE"
+    [ "$status" -ne 0 ]
+    output_has "not inside a git repository"
+    cmp -s "$R/CHANGELOG.md" "$WORK/CHANGELOG.orig"
 }
 
 @test "negative control: untouched() detects a change" {
@@ -122,6 +161,14 @@ untouched() {
     prepare --notes 0.1.0
     [ "$output" = "$(printf '### Added\n- First.')" ]
     cmp -s "$R/CHANGELOG.md" "$WORK/CHANGELOG.released"
+}
+
+@test "notes: works on a dirty tree (CI and version-to-release.sh call it)" {
+    prepare 0.2.0 2026-10-21
+    echo "x" > "$R/other"
+    prepare --notes 0.2.0
+    [ "$status" -eq 0 ]
+    [ "$(printf '%s\n' "$output" | head -n 1)" = "### Added" ]
 }
 
 @test "notes: refuses a missing or undated version, an empty section, a bad version" {
@@ -156,7 +203,6 @@ released_repo() {
     git -C "$G" tag -a v0.1.0 -m v0.1.0
     BEFORE="$(git -C "$G" rev-parse HEAD)"
     (cd "$G" && "$BASH_UNDER_TEST" "$PREPARE" 0.2.0 2026-10-21 > /dev/null)
-    git -C "$G" commit -q -am "Release v0.2.0"
 }
 
 # decide <before>

@@ -16,6 +16,10 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   `/app/.git` plus the gitdir's `config` are generated (`core.worktree = /app`, host config
   included, so it stays live); nested submodules too. `GIT_MAIN_REPO_PATH` in `shared/.env` is now
   `GIT_COMMON_DIR` (the gitdir itself).
+### Changed
+- **Template repo only: `prepare.sh` commits the release.** It refuses a dirty working tree
+  (untracked files included), then commits `CHANGELOG.md` and `.devcontainer/VERSION` as
+  "Release vX.Y.Z"; the separate `git commit` step is gone. `--notes` is unchanged.
 
 ## [0.1.2] - 2026-10-24
 

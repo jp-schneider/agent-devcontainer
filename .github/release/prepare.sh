@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Prepares a release in the working tree: sets .devcontainer/VERSION, turns the CHANGELOG's
-# [Unreleased] section into [<version>] - <date> with a fresh empty [Unreleased] above it, and
-# prints that section's body (the release notes) to stdout. Touches no git state: the maintainer
-# commits it in a pull request, and merging it publishes the release (release.yml).
+# Prepares a release: sets .devcontainer/VERSION, turns the CHANGELOG's [Unreleased] section into
+# [<version>] - <date> with a fresh empty [Unreleased] above it, commits both files as
+# "Release v<version>", and prints that section's body (the release notes) to stdout. Needs a clean
+# working tree (untracked files count), so the commit holds only the release. The maintainer opens
+# a pull request with it; merging it publishes the release (release.yml).
 # --notes prints the body of an already dated section (what release.yml publishes) and changes
 # nothing.
 # Run from the repo root. Bash 3.2 compatible.
@@ -58,6 +59,8 @@ fi
 
 notes="$(section_body "## [Unreleased]")"
 [ -n "$notes" ] || fail "the [Unreleased] section in $changelog is empty"
+git rev-parse --is-inside-work-tree > /dev/null 2>&1 || fail "not inside a git repository"
+[ -z "$(git status --porcelain)" ] || fail "working tree not clean, commit or stash first"
 
 tmp="$changelog.tmp.$$"
 awk -v v="$version" -v d="$date" '
@@ -66,5 +69,7 @@ awk -v v="$version" -v d="$date" '
 ' "$changelog" > "$tmp"
 mv "$tmp" "$changelog"
 printf '%s\n' "$version" > .devcontainer/VERSION
+git commit -q -m "Release v$version" -- "$changelog" .devcontainer/VERSION \
+    || fail "$changelog and .devcontainer/VERSION are updated but the commit failed; commit them yourself"
 
 printf '%s\n' "$notes"
