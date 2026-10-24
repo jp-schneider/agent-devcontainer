@@ -89,6 +89,7 @@ protect() {
     [ "$status" -ne 0 ]
     output_has "  planted/.git"
     [ ! -e "$WS/$OUT" ]
+    [ ! -e "$WS/planted/.mcp.json" ] # no placeholders in an unknown repo
 }
 
 @test "deeply nested planted repo: aborts" {
@@ -140,6 +141,52 @@ protect() {
     has_mount "ro $WS/ext/.git -> /app/ext/.git"
     has_mount "ro $WS/gd/ext/hooks -> /app/gd/ext/hooks"
     has_mount "ro $WS/gd/ext/config -> /app/gd/ext/config"
+}
+
+# has_trusted <workspace> <dir>: the root's host-trusted paths are read-only in the nested tree <dir>
+has_trusted() {
+    local p
+    for p in .devcontainer .vscode .claude/settings.json .claude/settings.local.json .mcp.json; do
+        has_mount "ro $1/$2/$p -> /app/$2/$p" || return 1
+    done
+}
+
+@test "submodule: host-trusted paths read-only with placeholders; rest of its .claude writable" {
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" sub
+    [ -d "$WS/sub/.devcontainer" ]
+    [ -d "$WS/sub/.vscode" ]
+    cmp -s "$WS/sub/.claude/settings.json" "$SHARED/claude-settings.default.json"
+    [ "$(cat "$WS/sub/.claude/settings.local.json")" = "{}" ]
+    grep -q mcpServers "$WS/sub/.mcp.json"
+    [ "$(grep -c -- '-> /app/sub/\.claude' <<< "$MOUNTS")" -eq 2 ]
+}
+
+@test "submodule: existing host-trusted files are kept" {
+    mkdir -p "$WS/sub/.devcontainer" "$WS/sub/.claude"
+    echo '{"name": "sub"}' > "$WS/sub/.devcontainer/devcontainer.json"
+    echo '{"permissions": {}}' > "$WS/sub/.claude/settings.json"
+    echo '{"mcpServers": {"x": {}}}' > "$WS/sub/.mcp.json"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" sub
+    [ "$(cat "$WS/sub/.devcontainer/devcontainer.json")" = '{"name": "sub"}' ]
+    [ "$(cat "$WS/sub/.claude/settings.json")" = '{"permissions": {}}' ]
+    [ "$(cat "$WS/sub/.mcp.json")" = '{"mcpServers": {"x": {}}}' ]
+}
+
+@test "allowlisted repo dir and pointer: host-trusted paths read-only, not in the separate gitdir" {
+    git init -q "$WS/planted"
+    mkdir -p "$WS/gd"
+    git init -q --separate-git-dir="$WS/gd/ext" "$WS/ext"
+    printf '%s\n' planted ext > "$WS/.devcontainer/allowed-nested-git.txt"
+    protect "$WS"
+    [ "$status" -eq 0 ]
+    has_trusted "$WS" planted
+    has_trusted "$WS" ext
+    [ ! -e "$WS/gd/ext/.vscode" ]
+    not_grep -- '-> /app/gd/ext/\.' <<< "$MOUNTS"
 }
 
 # --- B2: the workspace is a submodule (gitdir in the superproject, relative pointers)
@@ -205,6 +252,7 @@ link_for() {
         [ "$(cat "$k.git")" = "gitdir: $g" ]
         [ "$(git config -f "$k.config" include.path)" = "/opt/host-gitdir${g#"$M"}/config" ]
         [ "$(git config -f "$k.config" core.worktree)" = "/app/$d" ]
+        has_trusted "$B" "$d"
     done
 }
 
@@ -300,6 +348,7 @@ link_for() {
     [ "$status" -eq 0 ]
     output_has "WARNING .devcontainer/ is writable"
     not_grep -- '-> /app/.devcontainer$' <<< "$MOUNTS"
+    has_mount "ro $WS/sub/.devcontainer -> /app/sub/.devcontainer" # the switch is for the workspace only
     has_mount "ro $G/hooks -> /app/.git/hooks"
     has_mount "ro /dev/null -> /app/.env"
 }

@@ -69,6 +69,7 @@ could escape the container the next time you start it or use git there.
 | `/app/.git` (linked worktree, submodule workspace) | pointer file; redirecting it changes which gitdir host git uses | read-only (submodule workspace: a generated pointer, see below) |
 | `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` | hooks and MCP servers run when Claude Code runs **on the host**; permission rules | read-only; in-container "always allow" approvals don't persist |
 | `.vscode/` | tasks (`runOn: folderOpen`), interpreter and terminal settings in the host VS Code | read-only |
+| the above in known nested repos: `<dir>/.devcontainer/`, `<dir>/.vscode/`, `<dir>/.claude/settings*.json`, `<dir>/.mcp.json` | the nested repo can be opened on the host on its own (devcontainer, VS Code, Claude Code) | read-only; the rest of `<dir>/.claude/` stays writable |
 | files matching `mask-patterns.txt` (anywhere in the workspace): `.env*`, `*.env`, private keys, `.netrc`/`.npmrc`/`.pypirc`, cloud credentials, `secrets.*`, tfvars/tfstate | host-only config and secrets | masked with `/dev/null` (empty, read-only). The host copy is untouched. Exceptions: `container.env`, `.env.example/.sample/.template`, the generated `shared/.env` |
 
 The main gitdir is reachable at **two** container paths in the main worktree: its absolute host
@@ -100,6 +101,12 @@ It does so automatically, too: host VS Code detects repos in subfolders, and git
   read-only `modules/`) or a directory listed in `.devcontainer/allowed-nested-git.txt`, which is
   read-only to the agent. Their `hooks/`, `config`, `modules/` and `worktrees/` are read-only. So
   are all `.git` pointer files, including the gitdir of an allowlisted pointer if it lies in the workspace.
+- **Their host-trusted paths too.** A nested repo can be opened on the host on its own: as a
+  devcontainer (its `initializeCommand` runs on the host), in VS Code, with Claude Code. So its
+  `.devcontainer/` (always; `DEVCONTAINER_EDITABLE_BY_AGENT` applies to the workspace only),
+  `.vscode/`, `.claude/settings*.json` and `.mcp.json` are read-only, with the same placeholders.
+  Placeholder directories are empty, which git ignores; placeholder files show as untracked in the
+  nested repo. That is the price for having no gap: without them the agent could create the file.
 - **Unknown nested repos abort the container start.** These are exactly the ones planted since the
   allowlist was last approved on the host.
 - **Creating repos can't be prevented** on a read-write mount: `git init`, `clone`, `mkdir .git`

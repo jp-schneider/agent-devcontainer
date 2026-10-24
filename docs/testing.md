@@ -79,6 +79,9 @@ After changes to the Dockerfile, compose files or host scripts:
    - Submodule workspace (open a submodule B of some repo A): `git status` and a commit work in
      B; `git remote -v` shows a remote added on the host (`git -C A/B remote add probe /x`)
      without restart; a nested submodule of B works too (`git -C /app/<nested> status`).
+   - Submodule's host-trusted paths (a repo with a submodule `sub`): `touch /app/sub/.devcontainer/x`,
+     `echo {} > /app/sub/.mcp.json` and `echo {} > /app/sub/.claude/settings.json` fail;
+     `touch /app/sub/.claude/x` works (remove it afterwards).
    - A planted repo aborts the next start: `git init /app/planted`, then rebuild, then expect
      `protect-paths: ABORT`. Remove the repo afterwards.
 4. **Labels** (from the host or via the proxy): the container's `com.docker.compose.project` is

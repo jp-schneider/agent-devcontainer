@@ -27,14 +27,6 @@ if [ ! -f "$defaults_patterns" ]; then
     exit 1
 fi
 
-# --- Placeholders: a path must exist to be bind-mounted read-only
-mkdir -p .vscode .claude
-# settings.json starts from the template default: Read/Edit deny rules for secret files, mirroring
-# mask-patterns.txt as globs (matters for Claude Code run on the host; keep both in sync)
-[ -e .claude/settings.json ] || cp "$(dirname "$defaults_patterns")/claude-settings.default.json" .claude/settings.json
-[ -e .claude/settings.local.json ] || echo '{}' > .claude/settings.local.json
-[ -e .mcp.json ] || echo '{"mcpServers": {}}' > .mcp.json
-
 # --- Git layout. Mirrors GIT_COMMON_DIR in initialize.sh: the common gitdir is mounted
 # at the same absolute path (and is also /app/.git in the main worktree).
 main_git=""
@@ -62,11 +54,13 @@ resolve_pointer() {
 violations=""
 nested_gitdirs="" # host gitdirs of allowlisted nested repos inside the workspace
 pointers=""       # workspace-relative .git pointer files (submodules, allowlisted)
+trees=""          # workspace-relative working trees of known nested repos
 while IFS= read -r g; do
     rel="${g#./}"
     resolved=""
     [ -f "$g" ] && resolved="$(resolve_pointer "$g")"
     if [ -f "$allowlist" ] && grep -qxF "$(dirname "$rel")" "$allowlist"; then
+        trees="${trees}$(dirname "$rel")"$'\n'
         if [ -d "$g" ]; then
             nested_gitdirs="${nested_gitdirs}${ws}/${rel}"$'\n'
         else
@@ -87,6 +81,7 @@ while IFS= read -r g; do
         case "$resolved" in
             "$main_git"/modules/* | "$self_git"/modules/*)
                 pointers="${pointers}${rel}"$'\n'
+                trees="${trees}$(dirname "$rel")"$'\n'
                 continue
                 ;;
         esac
@@ -115,6 +110,21 @@ quote() {
 bind() { # <host-source> <container-target> <read_only: true|false>
     printf '      - type: bind\n        source: %s\n        target: %s\n        read_only: %s\n' \
         "$(quote "$1")" "$(quote "$2")" "$3" >> "$tmp"
+}
+# protect_trusted <prefix>: paths in a working tree that the host trusts when it is opened on its own
+# (VS Code, Claude Code); "" for the workspace, "<dir>/" for a nested repo. A path must exist to be
+# bind-mounted read-only, so missing ones get placeholders. settings.json starts from the template
+# default: Read/Edit deny rules for secret files, mirroring mask-patterns.txt as globs (matters for
+# Claude Code run on the host; keep both in sync)
+protect_trusted() {
+    mkdir -p "$1.vscode" "$1.claude"
+    [ -e "$1.claude/settings.json" ] || cp "$(dirname "$defaults_patterns")/claude-settings.default.json" "$1.claude/settings.json"
+    [ -e "$1.claude/settings.local.json" ] || echo '{}' > "$1.claude/settings.local.json"
+    [ -e "$1.mcp.json" ] || echo '{"mcpServers": {}}' > "$1.mcp.json"
+    bind "$ws/$1.vscode" "/app/$1.vscode" true
+    bind "$ws/$1.claude/settings.json" "/app/$1.claude/settings.json" true
+    bind "$ws/$1.claude/settings.local.json" "/app/$1.claude/settings.local.json" true
+    bind "$ws/$1.mcp.json" "/app/$1.mcp.json" true
 }
 protect_gitdir() { # <host-gitdir> <container-gitdir> [<config-source>]: everything in it that host git executes or follows
     mkdir -p "$1/hooks" "$1/modules" "$1/worktrees"
@@ -165,10 +175,16 @@ if grep -qx 'DEVCONTAINER_EDITABLE_BY_AGENT=1' .env 2> /dev/null; then
 else
     bind "$ws/.devcontainer" /app/.devcontainer true
 fi
-bind "$ws/.vscode" /app/.vscode true
-bind "$ws/.claude/settings.json" /app/.claude/settings.json true
-bind "$ws/.claude/settings.local.json" /app/.claude/settings.local.json true
-bind "$ws/.mcp.json" /app/.mcp.json true
+protect_trusted ""
+# Known nested repos can be opened on the host on their own (as a devcontainer, too), so the same
+# paths; their .devcontainer/ always (the switch above is for this workspace only). Empty
+# placeholder dirs don't show in git; placeholder files show as untracked in the nested repo.
+while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    mkdir -p "$d/.devcontainer"
+    bind "$ws/$d/.devcontainer" "/app/$d/.devcontainer" true
+    protect_trusted "$d/"
+done <<< "$trees"
 
 # Secrets and host-only files: /dev/null over every file matching mask-patterns.txt
 # (template defaults next to this script + optional project file; "!" lines allow)

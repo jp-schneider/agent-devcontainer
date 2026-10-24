@@ -16,6 +16,12 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   name share the compose project, container, network and volumes (Claude config with login,
   venvs), and reach each other's sidecars. New entry in
   [Known limitations](.devcontainer/README.md#known-limitations); unique names are planned for 0.2.
+- **Host-trusted paths in submodules are read-only.** Before, only the workspace root's
+  `.devcontainer/`, `.vscode/`, `.claude/settings*.json` and `.mcp.json` were protected; the agent
+  could change them in a submodule (or allowlisted nested repo) and run code on the host when that
+  repo was opened on its own (as a devcontainer, in VS Code, with Claude Code). Now they are
+  read-only in every known nested repo; the rest of its `.claude/` stays writable. Missing settings
+  files are created as placeholders, as at the root, and show as untracked in the submodule.
 
 
 ### Fixed

@@ -253,7 +253,9 @@ Edit those files on the host, then restart or rebuild if needed.
 
 ### Can I use submodules or other repositories inside the workspace?
 
-- **Submodules:** yes.
+- **Submodules:** yes. Their host-trusted paths (`.devcontainer/`, `.vscode/`,
+  `.claude/settings*.json`, `.mcp.json`) are read-only like the workspace's; missing settings files
+  are created as placeholders and show as untracked in the submodule.
 - **The workspace itself as a submodule of another repo:** yes, open the submodule's folder. Only
   its own gitdir is mounted, not the superproject (see
   [REFERENCE.md](REFERENCE.md#protected-paths)).

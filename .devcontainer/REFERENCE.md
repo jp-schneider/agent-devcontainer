@@ -74,6 +74,10 @@ If you add mask patterns, consider adding matching deny rules.
 **Nested git repositories:**
 - **Known ones are protected like the main repo:** submodules, and directories listed in
   `.devcontainer/allowed-nested-git.txt` (one path per line, relative to the workspace root).
+  This includes their `.devcontainer/`, `.vscode/`, `.claude/settings*.json` and `.mcp.json`,
+  since you may open them on the host on their own; the rest of their `.claude/` stays writable.
+  Missing ones get the same placeholders, so the files show up as untracked in the nested repo
+  (commit, ignore or leave them).
 - **Unknown ones abort the start,** because host git (and host VS Code, git-aware prompts) would
   run their hooks and config. Remove the repo, run `git submodule absorbgitdirs` for old-style
   submodules, or add the directory to the allowlist on the host.
