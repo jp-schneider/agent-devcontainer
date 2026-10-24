@@ -77,7 +77,7 @@ Pick your path: **A** if you're starting a new repository, **B** if you already 
 4. Delete the template's workflow files. The workflow isn't allowed to (they never run in your
    repo; its run summary shows the same command):
    ```bash
-   git rm .github/workflows/tests.yml .github/workflows/template-cleanup.yml
+   git rm .github/workflows/tests.yml .github/workflows/release.yml .github/workflows/template-cleanup.yml
    git commit -m "Remove template workflows" && git push
    ```
 5. Run **"Dev Containers: Reopen in Container"** (command palette, `F1`) and pick a

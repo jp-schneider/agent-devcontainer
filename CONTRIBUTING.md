@@ -81,35 +81,37 @@ These are easy to break by accident and matter for security:
       as not done.
 - [ ] Docs updated: `.devcontainer/README.md` (including **Known limitations** if the security
       picture changes), `CUSTOMIZING.md`, `REFERENCE.md` and `docs/` as needed.
-- [ ] `CHANGELOG.md`: an entry under **[Unreleased]**.
+- [ ] `CHANGELOG.md`: an entry under **[Unreleased]**. No version bump, unless the PR is meant to be
+      a release (maintainer, see below).
 
 ## Releases (maintainer)
 
 Versions follow [SemVer](https://semver.org/); while at 0.x, a minor version may break things,
 with migration notes in the changelog.
 
-A release goes through a pull request like any other change, so it passes the same checks:
+**Only a PR that ran `prepare.sh` is a release.** Every other PR adds its CHANGELOG entry under
+**[Unreleased]** and releases nothing when merged; its changes ship with the next release. A
+release is then one pull request: it bumps the version, and merging it publishes the release.
 
-1. **Release PR.** On a branch from `main`:
+1. **Bump the version in a PR**, either as the last commit of a feature PR or in a small PR of
+   its own, on a branch from `main`:
    ```bash
-   bash .github/release/prepare.sh x.y.z > ../notes-vx.y.z.md   # keep the notes outside the repo
+   bash .github/release/prepare.sh x.y.z   # prints the release notes
    git commit -am "Release vx.y.z"
-   git push -u origin HEAD && gh pr create --title "Release vx.y.z" --body "See CHANGELOG.md."
    ```
    [prepare.sh](.github/release/prepare.sh) sets `.devcontainer/VERSION` and turns **[Unreleased]**
    into `## [x.y.z] - YYYY-MM-DD` under a new empty **[Unreleased]**. It refuses an existing
-   version or an empty **[Unreleased]**.
+   version or an empty **[Unreleased]**. Run `tests/run.sh` afterwards: CI does the same on the PR.
 2. **Merge** once CI is green (squash).
-3. **Tag the merged commit and publish** (after the merge: a squash merge doesn't keep the
-   branch's commit):
-   ```bash
-   git switch main && git pull
-   git tag -a vx.y.z -m "vx.y.z" && git push origin vx.y.z
-   gh release create vx.y.z --verify-tag --title vx.y.z --notes-file ../notes-vx.y.z.md
-   ```
+3. **Done:** [release.yml](.github/workflows/release.yml) sees the changed `VERSION` on `main`,
+   checks it ([version-to-release.sh](.github/release/version-to-release.sh): no existing tag
+   `vx.y.z`, greater than every release, a dated CHANGELOG section), then creates the tag and the
+   GitHub release with that section as notes. An inconsistent bump fails the workflow instead;
+   fix it in a new PR.
 
-There is no release workflow on purpose: a workflow can't push the release commit to a `main`
-that requires pull requests (`GITHUB_TOKEN` can't be exempted from rulesets).
+The workflow pushes nothing to `main` (a protected `main` is fine), only the tag. **GitHub setup:**
+a tag ruleset for `v*` that blocks updating and deleting tags but not creating them, so releases
+can't be moved afterwards and the workflow can still create them.
 
 Derived repos update with `.devcontainer/update-from-template.sh`, which defaults to the latest
 release tag.

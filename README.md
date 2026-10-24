@@ -34,7 +34,7 @@ agents with more access than they intend, and because it will get better with mo
    `.claude/` in your new repo and removes `docs/`.
 2. Clone it and optionally delete the template's workflow files, which the cleanup bot isn't allowed to
    remove (due to github restrictions). The workflow files will never run in your repo:
-   `git rm .github/workflows/tests.yml .github/workflows/template-cleanup.yml`, commit, push.
+   `git rm .github/workflows/{tests,release,template-cleanup}.yml`, commit, push.
 3. Open it in VS Code with the
    [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
    extension, then choose **"Reopen in Container"** and pick a variant.

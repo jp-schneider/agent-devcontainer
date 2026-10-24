@@ -24,7 +24,8 @@ template-only files are removed afterwards by a workflow.
 - Moves `LICENSE` to `.devcontainer/LICENSE`: the template's license covers the files it ships,
   and the root is left for the project's own license.
 - Run by hand (outside GitHub Actions, `GITHUB_ACTIONS` unset): also deletes the template's
-  workflows `tests.yml` and `template-cleanup.yml`. In GitHub Actions it leaves them (see below).
+  workflows `tests.yml`, `release.yml` and `template-cleanup.yml`. In GitHub Actions it leaves them
+  (see below).
 - Deletes `.github/template-cleanup/` itself. This directory is the "not yet cleaned" marker.
 
 **Triggers and guards:**

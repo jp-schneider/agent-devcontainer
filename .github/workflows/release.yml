@@ -1,0 +1,53 @@
+name: Release
+
+# Publishes a release when a merge to main changes .devcontainer/VERSION, i.e. a pull request that
+# ran .github/release/prepare.sh (see CONTRIBUTING.md, "Releases"). Creates only the tag vX.Y.Z and
+# the GitHub release with the CHANGELOG section as notes; pushes nothing to main, so it works with
+# a main that requires pull requests. An inconsistent bump (existing tag, lower version, no dated
+# CHANGELOG section) fails here instead of releasing.
+# Template repo only: repos created from the template keep this file (a GITHUB_TOKEN push can't
+# delete workflows), the repository guard keeps it inert there, and the cleanup asks to delete it.
+
+on:
+  push:
+    branches: [main]
+    paths: [.devcontainer/VERSION]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'jp-schneider/agent-devcontainer'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0 # history and tags, for the version checks
+
+      - name: Decide
+        id: decide
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          version="$(bash .github/release/version-to-release.sh "$BEFORE")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and publish
+        if: steps.decide.outputs.version != ''
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/release/prepare.sh --notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "refs/tags/v$VERSION"
+          gh release create "v$VERSION" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
