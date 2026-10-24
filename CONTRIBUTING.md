@@ -94,14 +94,14 @@ with migration notes in the changelog.
 release is then one pull request: it bumps the version, and merging it publishes the release.
 
 1. **Bump the version in a PR**, either as the last commit of a feature PR or in a small PR of
-   its own, on a branch from `main`:
+   its own, on a branch from `main`, with a clean working tree:
    ```bash
-   bash .github/release/prepare.sh x.y.z   # prints the release notes
-   git commit -am "Release vx.y.z"
+   bash .github/release/prepare.sh x.y.z   # commits "Release vx.y.z", prints the release notes
    ```
-   [prepare.sh](.github/release/prepare.sh) sets `.devcontainer/VERSION` and turns **[Unreleased]**
-   into `## [x.y.z] - YYYY-MM-DD` under a new empty **[Unreleased]**. It refuses an existing
-   version or an empty **[Unreleased]**. Run `tests/run.sh` afterwards: CI does the same on the PR.
+   [prepare.sh](.github/release/prepare.sh) sets `.devcontainer/VERSION`, turns **[Unreleased]**
+   into `## [x.y.z] - YYYY-MM-DD` under a new empty **[Unreleased]**, and commits both files. It
+   refuses a dirty working tree (untracked files included), an existing version or an empty
+   **[Unreleased]**. Run `tests/run.sh` afterwards: CI does the same on the PR.
 2. **Merge** once CI is green (squash).
 3. **Done:** [release.yml](.github/workflows/release.yml) sees the changed `VERSION` on `main`,
    checks it ([version-to-release.sh](.github/release/version-to-release.sh): no existing tag
