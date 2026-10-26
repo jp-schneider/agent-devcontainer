@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-26
+
 ### Fixed
 - **`update-from-template.sh` left conflicts on files you don't have.** When the template changed a
   file under a project-owned path (`.claude/`, `docs/`) that the project doesn't have (e.g. removed
