@@ -206,7 +206,9 @@ takes the template's value.
   `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files. Conflicts on
   those paths are resolved automatically; only the remaining ones are listed at the end.
 - **Clean working tree:** commit or stash first. Changes inside submodules (and new submodule
-  commits you haven't staged) don't count and stay as they are.
+  commits you haven't staged) don't count and stay as they are. Ignored local files at a path where
+  the template has a file you don't track would be overwritten by git, so the script stops and
+  lists them; move them away and run it again.
 - **First run, or after a squash-merged update:** there is no common history with the template,
   so the script uses the template release in `.devcontainer/VERSION` as the merge base. Only files
   you changed since that release conflict. If `VERSION` names no release (e.g. you started from an

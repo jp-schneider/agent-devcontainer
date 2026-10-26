@@ -351,3 +351,31 @@ squashed_repo() {
     [ -z "$(git -C "$C" diff --cached --name-only)" ]
     ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
 }
+
+@test "guard: ignored local files in the way of template files stop the update, nothing touched" {
+    C="$WORK/ignored-in-way"
+    git clone -q "$DER" "$C"
+    # The template has CHANGELOG.md and tests/…, this repo doesn't track them (template-only)
+    echo "my local changelog" > "$C/CHANGELOG.md"
+    echo "a file where the template has a directory" > "$C/tests"
+    printf 'CHANGELOG.md\ntests\n' >> "$C/.git/info/exclude" # ignored, so the clean check passes
+    update_in "$C"
+    [ "$status" -ne 0 ]
+    output_has "ignored local files are in the way"
+    output_has "  CHANGELOG.md"
+    output_has "  tests"
+    [ "$(cat "$C/CHANGELOG.md")" = "my local changelog" ]
+    [ -f "$C/tests" ]
+    ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
+    [ -z "$(git -C "$C" diff --cached --name-only)" ]
+}
+
+@test "guard: ignored files elsewhere don't stop the update" {
+    C="$WORK/ignored-elsewhere"
+    git clone -q "$DER" "$C"
+    echo "local" > "$C/my-notes.txt"
+    echo "my-notes.txt" >> "$C/.git/info/exclude"
+    update_in "$C"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$C/my-notes.txt")" = local ]
+}

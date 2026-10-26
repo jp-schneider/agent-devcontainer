@@ -56,6 +56,32 @@ fi
 git fetch --no-tags template "$ref"
 target="$(git rev-parse 'FETCH_HEAD^{commit}')"
 
+# git (merge and read-tree alike) overwrites ignored files without asking, they count as expendable.
+# Stop if one is in the way of a file the template has and this repo doesn't track (also template-only
+# files dropped below: the merge writes them first), or of a directory on the way to one. Untracked
+# files that aren't ignored were already refused by the clean check.
+in_way=""
+while IFS= read -r f; do
+    git cat-file -e "HEAD:$f" 2> /dev/null && continue
+    at="$f"
+    while [ -n "$at" ]; do
+        if [ -L "$at" ] || { [ -e "$at" ] && { [ "$at" = "$f" ] || [ ! -d "$at" ]; }; }; then
+            in_way="$in_way  $at
+"
+            break
+        fi
+        case "$at" in */*) at="${at%/*}" ;; *) at="" ;; esac
+    done
+done << EOF
+$(git -c core.quotePath=false ls-tree -r --name-only "$target")
+EOF
+if [ -n "$in_way" ]; then
+    echo "update-from-template: ignored local files are in the way of template files (git would overwrite them):" >&2
+    printf '%s' "$in_way" | sort -u >&2
+    echo "Move them away, run again, then move them back if still needed." >&2
+    exit 1
+fi
+
 old_version="$(cat .devcontainer/VERSION 2> /dev/null || echo unknown)"
 new_version="$(git show "$target:.devcontainer/VERSION" 2> /dev/null || echo unknown)"
 echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: https://github.com/jp-schneider/agent-devcontainer/releases"
