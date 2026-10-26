@@ -2,20 +2,35 @@
 # Merges updates from the devcontainer template into a repo created from it, or (--adopt) into an
 # existing repo that was not. Keeps this repo's own files (see own_paths) and drops template-only
 # ones (docs, policies, cleanup). Leaves the merge uncommitted for review.
-# Run from the repo root on a clean working tree. Bash 3.2 compatible (macOS).
+# Run from the repo root on a clean working tree (submodules may be dirty). Bash 3.2 compatible (macOS).
 #
-# Usage: .devcontainer/update-from-template.sh [--adopt] [<ref>] [<template-url>]
+# Usage: .devcontainer/update-from-template.sh [--adopt] [--ignored=<mode>] [<ref>] [<template-url>]
 #   <ref>:   a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
 #   --adopt: first merge into a repo not created from the template. Moves its existing
 #            .devcontainer/ (and .devcontainer.json) to .devcontainer.legacy/ and seeds missing
 #            files (compose.project.yml, apt-packages.txt, .claude/settings.json, CLAUDE.md,
 #            .claude/ skeleton).
+#   --ignored=<mode>: ignored local files in the way of template files (git would overwrite them):
+#            ask (default in a terminal; per file on request), abort (default otherwise),
+#            backup (rename to <name>.bak), overwrite (delete them first).
 set -euo pipefail
 
 adopt=""
-if [ "${1:-}" = "--adopt" ]; then
-    adopt=1
+ignored_mode=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --adopt) adopt=1 ;;
+        --ignored=ask | --ignored=abort | --ignored=backup | --ignored=overwrite) ignored_mode="${1#--ignored=}" ;;
+        -*)
+            echo "update-from-template: unknown option '$1' (see the usage at the top of the script)" >&2
+            exit 1
+            ;;
+        *) break ;;
+    esac
     shift
+done
+if [ -z "$ignored_mode" ]; then
+    if [ -t 0 ]; then ignored_mode=ask; else ignored_mode=abort; fi
 fi
 ref="${1:-}"
 url="${2:-https://github.com/jp-schneider/agent-devcontainer.git}"
@@ -25,8 +40,11 @@ LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .v
 .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev"
 legacy=".devcontainer.legacy"
 
-if [ -n "$(git status --porcelain)" ]; then
-    echo "update-from-template: working tree not clean, commit or stash first" >&2
+# Submodules' own state (changes inside, new commits) doesn't matter: the template has none, and only
+# what is staged gets committed. Anything staged does, a submodule commit too.
+if [ -n "$(git status --porcelain --ignore-submodules=all)" ] \
+    || ! git diff --cached --quiet --ignore-submodules=none; then
+    echo "update-from-template: working tree not clean, commit or stash first (changes inside submodules are fine)" >&2
     exit 1
 fi
 if [ -n "$adopt" ]; then
@@ -53,36 +71,146 @@ fi
 git fetch --no-tags template "$ref"
 target="$(git rev-parse 'FETCH_HEAD^{commit}')"
 
+# git (merge and read-tree alike) overwrites ignored files without asking, they count as expendable.
+# Stop if one is in the way of a file the template has and this repo doesn't track (also template-only
+# files dropped below: the merge writes them first), or of a directory on the way to one. Untracked
+# files that aren't ignored were already refused by the clean check.
+in_way=""
+while IFS= read -r f; do
+    git cat-file -e "HEAD:$f" 2> /dev/null && continue
+    at="$f"
+    while [ -n "$at" ]; do
+        if [ -L "$at" ] || { [ -e "$at" ] && { [ "$at" = "$f" ] || [ ! -d "$at" ]; }; }; then
+            in_way="$in_way  $at
+"
+            break
+        fi
+        case "$at" in */*) at="${at%/*}" ;; *) at="" ;; esac
+    done
+done << EOF
+$(git -c core.quotePath=false ls-tree -r --name-only "$target")
+EOF
+# Decide for every path first (an abort changes nothing), then act. Backups get the first free
+# <name>.bak[.N] that is neither on disk nor a template file.
+if [ -n "$in_way" ]; then
+    in_way="$(printf '%s' "$in_way" | sed 's/^  //' | LC_ALL=C sort -u)"
+    echo "update-from-template: ignored local files are in the way of template files (git would overwrite them):" >&2
+    printf '%s\n' "$in_way" | sed 's/^/  /' >&2
+    # ask <prompt> <allowed letters>: one valid letter from stdin into $answer; end of input = a
+    ask() {
+        while :; do
+            printf '%s ' "$1" >&2
+            IFS= read -r answer || answer=a
+            case "$answer" in [$2]) return 0 ;; esac
+            echo "  please answer one of: $(printf '%s' "$2" | sed 's/./& /g')" >&2
+        done
+    }
+    plan="" # lines "<b|o> <path>"
+    case "$ignored_mode" in
+        abort) ;;
+        backup) plan="$(printf '%s\n' "$in_way" | sed 's/^/b /')" ;;
+        overwrite) plan="$(printf '%s\n' "$in_way" | sed 's/^/o /')" ;;
+        ask)
+            ask "[a]bort, [b]ack up all as <name>.bak, [o]verwrite all, or decide for [e]ach file?" abeo
+            case "$answer" in
+                b | o) plan="$(printf '%s\n' "$in_way" | sed "s/^/$answer /")" ;;
+                e)
+                    while IFS= read -r f <&3; do
+                        ask "  $f: [b]ack up, [o]verwrite or [a]bort?" boa
+                        [ "$answer" = a ] && { plan=""; break; }
+                        plan="$plan$answer $f
+"
+                    done 3<< EOF
+$in_way
+EOF
+                    ;;
+            esac
+            ;;
+    esac
+    if [ -z "$plan" ]; then
+        echo "update-from-template: stopped, nothing changed. Move them away (or run in a terminal, or" >&2
+        echo "pass --ignored=backup|overwrite), then run again." >&2
+        exit 1
+    fi
+    while read -r action f; do
+        [ -n "$f" ] || continue
+        if [ "$action" = b ]; then
+            bak="$f.bak"
+            i=0
+            while [ -e "$bak" ] || [ -L "$bak" ] || git cat-file -e "$target:$bak" 2> /dev/null; do
+                i=$((i + 1))
+                bak="$f.bak.$i"
+            done
+            mv -- "$f" "$bak"
+            echo "update-from-template: moved $f -> $bak"
+        else
+            rm -rf -- "$f"
+            echo "update-from-template: removed $f (overwritten by the template)"
+        fi
+    done << EOF
+$plan
+EOF
+fi
+
 old_version="$(cat .devcontainer/VERSION 2> /dev/null || echo unknown)"
 new_version="$(git show "$target:.devcontainer/VERSION" 2> /dev/null || echo unknown)"
 echo "update-from-template: $old_version -> $new_version (ref $ref). Changes: https://github.com/jp-schneider/agent-devcontainer/releases"
 
-# The first update has no common history ("Use this template" squashes it)
+# No common history on the first update ("Use this template" squashes it) and after a squash-merged
+# update. Then the template release named in .devcontainer/VERSION is the merge base, so only files
+# this repo changed since that release can conflict; without such a tag, unrelated histories.
 unrelated=""
+base=""
 if ! git merge-base HEAD "$target" > /dev/null; then
     unrelated="--allow-unrelated-histories"
+    if [ -z "$adopt" ] && printf '%s\n' "$old_version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+' \
+        && git fetch -q --no-tags template "refs/tags/v$old_version" 2> /dev/null; then
+        base="$(git rev-parse 'FETCH_HEAD^{commit}')"
+        echo "update-from-template: no shared history with the template (first update, or an earlier one was squash-merged); merge base: v$old_version"
+    fi
 elif [ -n "$adopt" ]; then
     echo "update-from-template: this repo already shares history with the template; run without --adopt" >&2
     exit 1
 fi
 
-# Conflicts are expected; own paths are resolved below, the rest is up to the user.
+# Conflicts are expected; own paths are resolved below, the rest is up to the user. git's own report
+# is kept back: it lists conflicts this script resolves (e.g. "deleted in HEAD and modified" for every
+# template-only file the template changed); the remaining ones are listed at the end.
 # A merge that didn't start (e.g. untracked files in the way) leaves no MERGE_HEAD: stop there.
 msg="Update devcontainer template to $new_version ($ref)"
 [ -z "$adopt" ] || msg="Adopt devcontainer template $new_version ($ref)"
-if ! git merge --no-commit --no-ff $unrelated -m "$msg" "$target"; then
-    if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
-        echo "update-from-template: merge did not start, see git's message above" >&2
-        exit 1
+merge_log="$(mktemp)"
+if [ -n "$base" ]; then
+    # git merge can't take an explicit base: the same merge by hand. read-tree merges the trees into
+    # index and working tree (refusing, before changing anything, if untracked files are in the way),
+    # merge-index the files changed on both sides (conflicts stay unmerged, with markers). MERGE_HEAD
+    # and MERGE_MSG make the next `git commit` a merge with the template as parent, so the following
+    # update has a common ancestor again.
+    if git read-tree -m -u "$base" HEAD "$target" > "$merge_log" 2>&1; then
+        git merge-index -o -q git-merge-one-file -a >> "$merge_log" 2>&1 || true
+        git update-ref ORIG_HEAD HEAD
+        printf '%s\n' "$target" > "$(git rev-parse --git-path MERGE_HEAD)"
+        printf '%s\n' "$msg" > "$(git rev-parse --git-path MERGE_MSG)"
     fi
+else
+    git merge --no-commit --no-ff $unrelated -m "$msg" "$target" > "$merge_log" 2>&1 || true
 fi
+if ! git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+    cat "$merge_log" >&2
+    rm -f "$merge_log"
+    echo "update-from-template: merge did not start, see git's message above" >&2
+    exit 1
+fi
+rm -f "$merge_log"
 
 # Only tracked files are touched; untracked/ignored ones (e.g. .claude/settings.local.json) stay
 for p in $own_paths; do
     if git cat-file -e "HEAD:$p" 2> /dev/null; then
-        # Drop files the template added under our path, then restore ours (also resolves conflicts)
-        git diff --cached --name-only --diff-filter=A HEAD -- "$p" | while IFS= read -r f; do
-            git rm -q -f -- "$f"
+        # Drop what isn't ours under our path: files the template added, and conflicted ones we don't
+        # have (the template changed a file we deleted; checkout HEAD can't resolve those). Then
+        # restore ours (also resolves the other conflicts).
+        git ls-files -- "$p" | LC_ALL=C sort -u | while IFS= read -r f; do
+            git cat-file -e "HEAD:$f" 2> /dev/null || git rm -q -f -- "$f"
         done
         git checkout HEAD -- "$p"
     else

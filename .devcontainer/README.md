@@ -93,7 +93,8 @@ This adds the template to a repository that wasn't created from it. Your old dev
 if any, is moved aside, not deleted.
 
 1. On your machine (not inside a container), go to the repository root. Commit or stash your
-   changes first; the script needs a clean working tree and at least one commit.
+   changes first; the script needs a clean working tree (changes inside submodules are fine) and
+   at least one commit.
 2. Fetch the template and extract the setup script:
    ```bash
    git remote add template https://github.com/jp-schneider/agent-devcontainer.git
@@ -202,10 +203,21 @@ bash .devcontainer/update-from-template.sh v0.2.0    # a specific release (or a 
 The script prints the version change (e.g. `0.1.0 -> 0.2.0`). `.devcontainer/VERSION` always
 takes the template's value.
 - **Merge behaviour:** it merges `template/main` without committing, keeps this repo's own
-  `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files.
-- **First run:** expect conflicts in every template file you have changed, or that the template
-  has changed since you created the repo. That's because there is no common ancestor yet.
-  Later updates merge normally.
+  `CLAUDE.md`, `README.md`, `.claude/` and `docs/`, and drops template-only files. Conflicts on
+  those paths are resolved automatically; only the remaining ones are listed at the end.
+- **Clean working tree:** commit or stash first. Changes inside submodules (and new submodule
+  commits you haven't staged) don't count and stay as they are.
+- **Ignored local files in the way:** git would overwrite an ignored file at a path where the
+  template has a file you don't track. The script lists them first. In a terminal it asks: abort,
+  back up all (renamed to `<name>.bak`, or `.bak.1`, … if taken), overwrite all, or decide per file;
+  nothing changes until every answer is given. Without a terminal it stops, unless you pass
+  `--ignored=backup`, `--ignored=overwrite` (or `--ignored=ask` to read answers from stdin).
+- **First run, or after a squash-merged update:** there is no common history with the template,
+  so the script uses the template release in `.devcontainer/VERSION` as the merge base. Only files
+  you changed since that release conflict. If `VERSION` names no release (e.g. you started from an
+  unreleased `main`), every file that differs from the template conflicts. The commit records the
+  template as a merge parent, so later updates merge normally; merge the update PR with a merge
+  commit, not squash, to keep that link.
 - **Deleted variants:** variants you deleted come back if the template changed them. Delete them again.
 - **`.gitignore` conflicts** are resolved automatically: your lines, plus the template's missing
   ones under `# devcontainer template`.
