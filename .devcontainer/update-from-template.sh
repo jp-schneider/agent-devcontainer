@@ -4,18 +4,33 @@
 # ones (docs, policies, cleanup). Leaves the merge uncommitted for review.
 # Run from the repo root on a clean working tree (submodules may be dirty). Bash 3.2 compatible (macOS).
 #
-# Usage: .devcontainer/update-from-template.sh [--adopt] [<ref>] [<template-url>]
+# Usage: .devcontainer/update-from-template.sh [--adopt] [--ignored=<mode>] [<ref>] [<template-url>]
 #   <ref>:   a release tag (e.g. v0.2.0) or a branch. Default: the latest vX.Y.Z tag, else main.
 #   --adopt: first merge into a repo not created from the template. Moves its existing
 #            .devcontainer/ (and .devcontainer.json) to .devcontainer.legacy/ and seeds missing
 #            files (compose.project.yml, apt-packages.txt, .claude/settings.json, CLAUDE.md,
 #            .claude/ skeleton).
+#   --ignored=<mode>: ignored local files in the way of template files (git would overwrite them):
+#            ask (default in a terminal; per file on request), abort (default otherwise),
+#            backup (rename to <name>.bak), overwrite (delete them first).
 set -euo pipefail
 
 adopt=""
-if [ "${1:-}" = "--adopt" ]; then
-    adopt=1
+ignored_mode=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --adopt) adopt=1 ;;
+        --ignored=ask | --ignored=abort | --ignored=backup | --ignored=overwrite) ignored_mode="${1#--ignored=}" ;;
+        -*)
+            echo "update-from-template: unknown option '$1' (see the usage at the top of the script)" >&2
+            exit 1
+            ;;
+        *) break ;;
+    esac
     shift
+done
+if [ -z "$ignored_mode" ]; then
+    if [ -t 0 ]; then ignored_mode=ask; else ignored_mode=abort; fi
 fi
 ref="${1:-}"
 url="${2:-https://github.com/jp-schneider/agent-devcontainer.git}"
@@ -75,11 +90,66 @@ while IFS= read -r f; do
 done << EOF
 $(git -c core.quotePath=false ls-tree -r --name-only "$target")
 EOF
+# Decide for every path first (an abort changes nothing), then act. Backups get the first free
+# <name>.bak[.N] that is neither on disk nor a template file.
 if [ -n "$in_way" ]; then
+    in_way="$(printf '%s' "$in_way" | sed 's/^  //' | LC_ALL=C sort -u)"
     echo "update-from-template: ignored local files are in the way of template files (git would overwrite them):" >&2
-    printf '%s' "$in_way" | sort -u >&2
-    echo "Move them away, run again, then move them back if still needed." >&2
-    exit 1
+    printf '%s\n' "$in_way" | sed 's/^/  /' >&2
+    # ask <prompt> <allowed letters>: one valid letter from stdin into $answer; end of input = a
+    ask() {
+        while :; do
+            printf '%s ' "$1" >&2
+            IFS= read -r answer || answer=a
+            case "$answer" in [$2]) return 0 ;; esac
+            echo "  please answer one of: $(printf '%s' "$2" | sed 's/./& /g')" >&2
+        done
+    }
+    plan="" # lines "<b|o> <path>"
+    case "$ignored_mode" in
+        abort) ;;
+        backup) plan="$(printf '%s\n' "$in_way" | sed 's/^/b /')" ;;
+        overwrite) plan="$(printf '%s\n' "$in_way" | sed 's/^/o /')" ;;
+        ask)
+            ask "[a]bort, [b]ack up all as <name>.bak, [o]verwrite all, or decide for [e]ach file?" abeo
+            case "$answer" in
+                b | o) plan="$(printf '%s\n' "$in_way" | sed "s/^/$answer /")" ;;
+                e)
+                    while IFS= read -r f <&3; do
+                        ask "  $f: [b]ack up, [o]verwrite or [a]bort?" boa
+                        [ "$answer" = a ] && { plan=""; break; }
+                        plan="$plan$answer $f
+"
+                    done 3<< EOF
+$in_way
+EOF
+                    ;;
+            esac
+            ;;
+    esac
+    if [ -z "$plan" ]; then
+        echo "update-from-template: stopped, nothing changed. Move them away (or run in a terminal, or" >&2
+        echo "pass --ignored=backup|overwrite), then run again." >&2
+        exit 1
+    fi
+    while read -r action f; do
+        [ -n "$f" ] || continue
+        if [ "$action" = b ]; then
+            bak="$f.bak"
+            i=0
+            while [ -e "$bak" ] || [ -L "$bak" ] || git cat-file -e "$target:$bak" 2> /dev/null; do
+                i=$((i + 1))
+                bak="$f.bak.$i"
+            done
+            mv -- "$f" "$bak"
+            echo "update-from-template: moved $f -> $bak"
+        else
+            rm -rf -- "$f"
+            echo "update-from-template: removed $f (overwritten by the template)"
+        fi
+    done << EOF
+$plan
+EOF
 fi
 
 old_version="$(cat .devcontainer/VERSION 2> /dev/null || echo unknown)"

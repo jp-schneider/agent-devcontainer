@@ -352,22 +352,104 @@ squashed_repo() {
     ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
 }
 
-@test "guard: ignored local files in the way of template files stop the update, nothing touched" {
+# in_way_repo <dir>: clone of $DER with ignored local files where the template has files this repo
+# doesn't track (template-only CHANGELOG.md and tests/…): CHANGELOG.md, and a file "tests"
+in_way_repo() {
+    git clone -q "$DER" "$1"
+    echo "my local changelog" > "$1/CHANGELOG.md"
+    echo "a file where the template has a directory" > "$1/tests"
+    printf 'CHANGELOG.md\nCHANGELOG.md.bak*\ntests\ntests.bak*\n' >> "$1/.git/info/exclude" # clean check passes
+}
+# update_answers <dir> <answers (printf %b)> [options...]: update to v0.3.0, answers on stdin
+update_answers() {
+    local dir="$1" answers="$2"
+    shift 2
+    run env ANSWERS="$answers" bash -c 'd="$1"; shift; cd "$d" && printf "%b" "$ANSWERS" | "$@"' _ \
+        "$dir" "$BASH_UNDER_TEST" .devcontainer/update-from-template.sh "$@" v0.3.0 "$TMPL"
+}
+# untouched_in_way <dir>: the ignored files are as created, no backups, no merge started
+untouched_in_way() {
+    [ "$(cat "$1/CHANGELOG.md")" = "my local changelog" ] && [ -f "$1/tests" ] \
+        && [ ! -e "$1/CHANGELOG.md.bak" ] && [ ! -e "$1/tests.bak" ] \
+        && ! git -C "$1" rev-parse -q --verify MERGE_HEAD > /dev/null \
+        && [ -z "$(git -C "$1" diff --cached --name-only)" ]
+}
+
+@test "guard: without a terminal, ignored local files in the way stop the update, nothing touched" {
     C="$WORK/ignored-in-way"
-    git clone -q "$DER" "$C"
-    # The template has CHANGELOG.md and tests/…, this repo doesn't track them (template-only)
-    echo "my local changelog" > "$C/CHANGELOG.md"
-    echo "a file where the template has a directory" > "$C/tests"
-    printf 'CHANGELOG.md\ntests\n' >> "$C/.git/info/exclude" # ignored, so the clean check passes
+    in_way_repo "$C"
     update_in "$C"
     [ "$status" -ne 0 ]
     output_has "ignored local files are in the way"
     output_has "  CHANGELOG.md"
     output_has "  tests"
-    [ "$(cat "$C/CHANGELOG.md")" = "my local changelog" ]
-    [ -f "$C/tests" ]
-    ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
-    [ -z "$(git -C "$C" diff --cached --name-only)" ]
+    output_has "--ignored=backup|overwrite"
+    untouched_in_way "$C"
+}
+
+@test "guard ask: [b]ack up all moves them to <name>.bak, then merges" {
+    C="$WORK/ask-backup"
+    in_way_repo "$C"
+    update_answers "$C" 'b\n' --ignored=ask
+    [ "$status" -eq 0 ]
+    output_has "moved CHANGELOG.md -> CHANGELOG.md.bak"
+    [ "$(cat "$C/CHANGELOG.md.bak")" = "my local changelog" ]
+    [ -f "$C/tests.bak" ]
+    git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
+}
+
+@test "guard ask: [o]verwrite all removes them, then merges" {
+    C="$WORK/ask-overwrite"
+    in_way_repo "$C"
+    update_answers "$C" 'o\n' --ignored=ask
+    [ "$status" -eq 0 ]
+    output_has "removed CHANGELOG.md"
+    [ ! -e "$C/CHANGELOG.md" ] && [ ! -e "$C/CHANGELOG.md.bak" ] && [ ! -e "$C/tests.bak" ]
+    git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
+}
+
+@test "guard ask: [e]ach file: per-file decisions (sorted order), invalid answers asked again" {
+    C="$WORK/ask-each"
+    in_way_repo "$C"
+    update_answers "$C" 'e\nx\nb\no\n' --ignored=ask
+    [ "$status" -eq 0 ]
+    output_has "please answer one of"
+    [ "$(cat "$C/CHANGELOG.md.bak")" = "my local changelog" ]
+    [ ! -e "$C/tests.bak" ] && [ ! -f "$C/tests" ]
+}
+
+@test "guard ask: abort at the start, halfway through [e]ach, or at end of input changes nothing" {
+    for answers in 'a\n' 'e\nb\na\n' '' 'e\nb\n'; do
+        C="$WORK/ask-abort-$RANDOM"
+        in_way_repo "$C"
+        update_answers "$C" "$answers" --ignored=ask
+        [ "$status" -ne 0 ] || { echo "answers '$answers' did not stop" >&2; return 1; }
+        output_has "stopped, nothing changed"
+        untouched_in_way "$C"
+    done
+}
+
+@test "guard: --ignored=backup without a terminal; an existing .bak gets the next free name" {
+    C="$WORK/flag-backup"
+    in_way_repo "$C"
+    echo "older backup" > "$C/CHANGELOG.md.bak"
+    update_answers "$C" '' --ignored=backup
+    [ "$status" -eq 0 ]
+    [ "$(cat "$C/CHANGELOG.md.bak")" = "older backup" ]
+    [ "$(cat "$C/CHANGELOG.md.bak.1")" = "my local changelog" ]
+}
+
+@test "guard: --ignored=overwrite without a terminal; unknown options and modes are refused" {
+    C="$WORK/flag-overwrite"
+    in_way_repo "$C"
+    update_answers "$C" '' --ignored=overwrite
+    [ "$status" -eq 0 ]
+    [ ! -e "$C/CHANGELOG.md.bak" ]
+    for bad in --ignored=keep --frobnicate; do
+        update_answers "$WORK/flag-overwrite" '' "$bad"
+        [ "$status" -ne 0 ]
+        output_has "unknown option '$bad'"
+    done
 }
 
 @test "guard: ignored files elsewhere don't stop the update" {

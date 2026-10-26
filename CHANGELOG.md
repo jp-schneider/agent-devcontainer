@@ -23,8 +23,9 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   Without a release tag for `VERSION` it merges as before.
 - **`update-from-template.sh` could overwrite ignored local files.** git treats ignored files as
   expendable: one at a path where the template has a file this repo doesn't track (or a file where
-  the template has a directory) was replaced without notice. The script now stops before merging
-  and lists them.
+  the template has a directory) was replaced without notice. The script now lists them before
+  merging and, in a terminal, asks: abort, back up all as `<name>.bak`, overwrite all, or decide per
+  file. Without a terminal it stops unless `--ignored=backup|overwrite|ask` says otherwise.
 - **`update-from-template.sh` refused to run with dirty submodules.** Changes inside submodules and
   unstaged new submodule commits no longer count as a dirty working tree (the template has no
   submodules, and only staged changes are committed); anything staged still does.
