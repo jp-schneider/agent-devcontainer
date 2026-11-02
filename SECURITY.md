@@ -38,5 +38,5 @@ the advisory and changelog unless you prefer otherwise.
   Claude Code itself.
 
 **Known limitations** are documented in
-[.devcontainer/README.md](.devcontainer/README.md#known-limitations). New attack paths around them,
+[.devcontainer/docs/security.md](.devcontainer/docs/security.md#known-limitations). New attack paths around them,
 or ideas to close them, are very welcome, as an issue or pull request if they're not sensitive.

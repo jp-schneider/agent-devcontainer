@@ -49,7 +49,7 @@ template-only files are removed afterwards by a workflow.
 - The template's workflow files stay in derived repos: a `GITHUB_TOKEN` push cannot modify
   `.github/workflows/` (it would be rejected without the `workflows` permission). They are guarded
   and never run there. The workflow's run summary and a notice give the user the `git rm` command;
-  the README quick start and `.devcontainer/README.md` list it as a step.
+  the README quick start and `.devcontainer/docs/getting-started.md` list it as a step.
 - No third-party actions; `actions/checkout` is pinned by SHA (v6.1.0).
 
 ## 3. Pulling template updates
