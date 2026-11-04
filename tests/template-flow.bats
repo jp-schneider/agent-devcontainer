@@ -134,6 +134,13 @@ teardown_file() {
     diff -rq -x template-dev -x LICENSE "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
 }
 
+@test "cleanup: relative links in the kept Markdown resolve (none into removed files)" {
+    cd "$WORK/after-cleanup"
+    run sh -c "grep '\.md$' '$WORK/after-cleanup.ls-files' | tr '\n' '\0' | xargs -0 python3 '$BATS_TEST_DIRNAME/md-links.py' ."
+    [ "$output" = "" ] || { echo "$output" >&2; return 1; }
+    [ "$status" -eq 0 ]
+}
+
 @test "cleanup by hand (outside GitHub Actions): also removes the template's workflow files" {
     H="$WORK/by-hand"
     mkdir -p "$H"
@@ -334,6 +341,25 @@ squashed_repo() {
     not_grep 'merge base:' <<< "$output"
     # add/add conflicts on every file that differs, as on a first update without a base
     git -C "$C" diff --name-only --diff-filter=U | grep -qx .devcontainer/shared/compose.core.yml
+}
+
+@test "git merge --abort undoes an update with conflicts, merge base path and plain merge alike" {
+    for v in 0.2.0 0.2.5; do # 0.2.5: no release tag, plain merge
+        C="$WORK/abort-$v"
+        squashed_repo "$C"
+        echo "$v" > "$C/.devcontainer/VERSION"
+        echo "# our last line" >> "$C/.devcontainer/shared/compose.core.yml" # conflicts with v3's
+        git -C "$C" commit -q -am "local work"
+        head="$(git -C "$C" rev-parse HEAD)"
+        update_in "$C"
+        [ "$status" -eq 0 ]
+        if [ "$v" = 0.2.0 ]; then output_has "merge base: v0.2.0"; else not_grep 'merge base:' <<< "$output"; fi
+        git -C "$C" diff --name-only --diff-filter=U | grep -qx .devcontainer/shared/compose.core.yml
+        git -C "$C" merge --abort
+        [ "$(git -C "$C" rev-parse HEAD)" = "$head" ]
+        [ -z "$(git -C "$C" status --porcelain)" ]
+        ! git -C "$C" rev-parse -q --verify MERGE_HEAD > /dev/null
+    done
 }
 
 @test "squashed update: a refused merge (read-tree) stops with git's message, nothing staged" {

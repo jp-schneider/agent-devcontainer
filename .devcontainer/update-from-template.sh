@@ -314,7 +314,7 @@ fi
 conflicts="$(git diff --name-only --diff-filter=U)"
 case "$conflicts" in
     *.vscode/settings.json*)
-        echo "update-from-template: in .vscode/settings.json keep \"git.autoRepositoryDetection\": false (see .devcontainer/README.md)"
+        echo "update-from-template: in .vscode/settings.json keep \"git.autoRepositoryDetection\": false (see .devcontainer/docs/getting-started.md)"
         ;;
 esac
 if [ -n "$conflicts" ]; then

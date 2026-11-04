@@ -1,7 +1,7 @@
 # Customizing the devcontainer
 
 How to adapt the container to your project without weakening its protections. Getting started:
-[README.md](README.md); how it works: [REFERENCE.md](REFERENCE.md).
+[getting-started.md](getting-started.md); how it works: [configuration.md](configuration.md).
 
 ## Ground rules
 
@@ -170,7 +170,7 @@ services:
 ### How do I add Python dependencies?
 
 Use uv as usual (`uv add …`, `uv sync`). Each project's venv lives in a persistent volume and
-survives rebuilds; the link is `.venv-<worktree>.ct`, see [REFERENCE.md](REFERENCE.md#uv-details). Don't
+survives rebuilds; the link is `.venv-<worktree>.ct`, see [configuration.md](configuration.md#uv-details). Don't
 create `.venv` by hand.
 
 ### How do I use Node (npm, pnpm)?
@@ -195,7 +195,7 @@ Add the `node` toolchain to your variant. It works alone or next to uv. In the v
 Then rebuild. Pin the Node version with `.nvmrc` or `.node-version` and the package manager with
 `"packageManager": "pnpm@<version>"` in `package.json`. `node_modules` of every package directory
 lives in its own volume. **After adding a package directory, rebuild** to give it one. Details:
-[REFERENCE.md](REFERENCE.md#node-details).
+[configuration.md](configuration.md#node-details).
 
 ### How do I use the GPU or give the container more resources?
 
@@ -237,19 +237,9 @@ Keep the `deny` rules that the template ships.
 ### How do I adapt CLAUDE.md to my project or to me?
 
 `CLAUDE.md` is yours: template updates never touch it. Ready-made rule sets are in
-[claude-md/](claude-md/README.md): `research.md` (scientific rigor, reproducible runs, plots) to
+[claude-md/](../claude-md/README.md): `research.md` (scientific rigor, reproducible runs, plots) to
 copy into `CLAUDE.md`, and `personal-preferences.md` for a gitignored `CLAUDE.local.md` with
 who you are and how you like to work, so it stays out of the repo.
-
-### The agent says a file is read-only. How do I change it?
-
-That's intended for:
-- `.devcontainer/`
-- git hooks/config
-- `.claude/settings*.json`, `.mcp.json`
-- `.vscode/`
-
-Edit those files on the host, then restart or rebuild if needed.
 
 ### Can I use submodules or other repositories inside the workspace?
 
@@ -257,10 +247,10 @@ Edit those files on the host, then restart or rebuild if needed.
   `.claude/settings*.json`, `.mcp.json`) are read-only like the workspace's; missing settings files
   are created as placeholders and show as untracked in the submodule. Commits inside submodules
   need `DEVCONTAINER_GIT_SUBMODULES_WRITABLE=1` in `.env` (see
-  [REFERENCE.md](REFERENCE.md#protected-paths)).
+  [security.md](security.md#protected-paths)).
 - **The workspace itself as a submodule of another repo:** yes, open the submodule's folder. Only
   its own gitdir is mounted, not the superproject (see
-  [REFERENCE.md](REFERENCE.md#protected-paths)).
+  [security.md](security.md#protected-paths)).
 - **Other nested repositories:** the start aborts. If you need one, list its directory in
   `.devcontainer/allowed-nested-git.txt` (one path per line); it is then protected like the main
   repo.
@@ -336,19 +326,6 @@ LMSTUDIO_API_TOKEN=...                 # host mode with authentication; visible 
 
 - **Delete the variant folders you don't use.** VS Code then stops asking.
 - **One container per worktree:** switching variants replaces the container.
-
-## Troubleshooting
-
-| Symptom | Cause / fix |
-|---|---|
-| Start aborts with `protect-paths: ABORT, nested git repositories` | A repo inside the workspace. Remove it, run `git submodule absorbgitdirs`, or allowlist it. |
-| `Read-only file system` / `Device or resource busy` | A protected path; edit it on the host. |
-| `container name ... is already in use` | An old container from a different setup. On the host: `docker rm -f claude-code-<folder>`. |
-| A package or extension is missing after editing | Rebuild, not just reopen. |
-| `node post-start: WARNING …/node_modules has no volume` | A package directory added since the last build. Rebuild. |
-| `node post-start: WARNING …/node_modules is not writable` | Its volume was created before the image had the mount point. On the host, `docker volume rm` it (name in `.devcontainer/.generated/compose.node.yml`), then rebuild. |
-| A file looks empty in the container | It matches a mask pattern (`shared/mask-patterns.txt`). Add an `!` exception in `.devcontainer/mask-patterns.txt` if the agent should see it. |
-| What config is actually used? | `.devcontainer/.generated/compose.resolved.yml` (written at each start). |
 
 ## Best practices
 

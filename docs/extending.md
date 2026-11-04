@@ -21,7 +21,7 @@
    (see [security.md](security.md)).
 4. Adjust the variant's `apt-packages.txt`: Python variants ship the OpenCV runtime, other stacks
    usually don't need it.
-5. Add the variant to the table in `.devcontainer/README.md`.
+5. Add the variant to the table in `.devcontainer/docs/getting-started.md`.
 
 ## Add a toolchain
 
@@ -64,7 +64,7 @@ Notes for planned toolchains:
 ## Add an overlay
 
 Put it in `.devcontainer/shared/compose.<feature>.yml` and document it in
-`.devcontainer/README.md`. Constraints:
+`.devcontainer/docs/configuration.md`. Constraints:
 - An overlay must not repeat a mount target that core defines, or it replaces core's mount.
 - An overlay must not mount anything at or below a protected path (see [security.md](security.md)).
 - New secret-file patterns: add them to `mask-patterns.txt` (regex) and, as globs, to
