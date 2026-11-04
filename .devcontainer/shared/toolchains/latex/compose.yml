@@ -1,4 +1,19 @@
-# Overlay: latex toolchain (TeX Live from apt, see apt-packages.txt). Nothing to persist and no
-# environment to pass; the file exists so variants list it like every toolchain's overlay
-# (initialize.sh warns about a toolchain whose compose.yml is missing from the list).
-services: {}
+# Overlay: latex toolchain (upstream TeX Live, installed by post-start.sh into a shared volume).
+services:
+  claude-code:
+    environment:
+      # The TeX Live release this template installs. A new release (each spring) needs a template
+      # update: tlmgr can't install packages from a newer release's repository into an older one.
+      # Releases install side by side in the volume.
+      TEXLIVE_YEAR: "2026"
+      TEXLIVE_ROOT: /home/vscode/.local/texlive
+    volumes:
+      # Shared across projects, like the node toolchain's Node versions: TeX Live (~1.5 GB), the
+      # packages added with tlmgr and the LuaLaTeX font cache
+      - latex-texlive:/home/vscode/.local/texlive
+
+volumes:
+  latex-texlive:
+    # Shared across projects; created by init-host.sh
+    name: ${RESOURCE_PREFIX:-agent-sandbox}-latex-texlive
+    external: true

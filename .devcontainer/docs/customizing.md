@@ -65,7 +65,7 @@ Pick by what it is:
 | What | Where | Persists across rebuilds? |
 |---|---|---|
 | Node (npm, pnpm, yarn) | the `node` toolchain, see [How do I use Node?](#how-do-i-use-node-npm-pnpm) | yes (volumes) |
-| LaTeX | the `latex` variant or toolchain, see [How do I write LaTeX?](#how-do-i-write-latex) | yes (in the image) |
+| LaTeX | the `latex` variant or toolchain, see [How do I write LaTeX?](#how-do-i-write-latex) | yes (shared volume) |
 | Other language runtime / common tool (Go, Rust, AWS CLI, …) | [Dev Container Feature](https://containers.dev/features) in `devcontainer.json` | yes (in the image) |
 | Python CLI tools (pre-commit, nox, …) | your project's dev dependencies (`uv add --dev …`), run via `uv run` | yes (venv volume) |
 | User-level tools for everyone in the project | `postCreateCommand` in `devcontainer.json` (e.g. `uv tool install …`) | re-run on each container creation |
@@ -219,21 +219,26 @@ variant's `devcontainer.json`, add its compose file before `compose.project.yml`
 "extensions": [ "james-yu.latex-workshop" ]
 ```
 
-Then rebuild. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab
-(SyncTeX: Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
+Then rebuild. **The first start on a machine installs TeX Live** (upstream, the current release,
+~1.5 GB, several minutes) into a Docker volume shared by all your projects; later starts take
+seconds. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab (SyncTeX:
+Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
 TeXstudio and other desktop editors don't run in the container by design.
 
-**Missing a package** (`File 'x.sty' not found`):
-- **A TeX Live bundle (the normal way):** add it to `.devcontainer/apt-packages.txt` (or the
-  variant's) and rebuild, e.g. `texlive-lang-german`, `texlive-fonts-extra` (~1 GB),
-  `texlive-humanities`. `apt-cache search texlive-` lists them; `texlive-full` is everything (~6 GB).
-- **A single `.sty`/`.cls`** (a conference template, a package not in Ubuntu): put it next to the
-  document, or in a folder of the project and commit it. Works immediately.
-- **`tlmgr`** doesn't manage Ubuntu's TeX Live. `tlmgr --usermode` can install into `~/texmf`, but
-  only from the archive matching TeX Live 2023
-  (`tlmgr init-usertree`, then `tlmgr --usermode --repository
-  https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2023/tlnet-final install <pkg>`), and
-  `~/texmf` is lost on rebuild. Best effort; prefer the two ways above.
+**More packages:** list them in `.devcontainer/tex-packages.txt` (package or collection names,
+e.g. `siunitx collection-langgerman`) and restart the container; only missing ones are
+installed. `tlmgr search --global --file x.sty` names the package of a missing file. The list is
+yours: template updates don't touch it, and it records what the project needs. Repos that adopted
+the template before the latex toolchain don't have the file yet; create it.
+- `tlmgr install <pkg>` in a terminal works too, without a restart. It lands in the shared volume
+  (all projects see it) and isn't recorded anywhere: prefer the list.
+- A single `.sty`/`.cls` (a conference template, a package not on CTAN): put it next to the
+  document, or in a folder of the project, and commit it.
+- **Updates:** `tlmgr update --self --all` updates every package in the volume, for all projects.
+  Nothing updates automatically.
+- **A new TeX Live release** (each spring): `tlmgr` can't install from the new release's repository
+  into the old one, and the start warns. Update the template; the new release installs next to
+  the old one in the volume (remove the old directory from the volume when no project needs it).
 
 **`-shell-escape`** (minted, some TikZ externalisation setups) lets a document run arbitrary
 commands. The default recipe doesn't pass it; enable it in your own LaTeX Workshop recipe or

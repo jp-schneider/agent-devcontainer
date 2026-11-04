@@ -65,7 +65,7 @@ derived repo:
 3. `git merge --no-commit --no-ff`, with `--allow-unrelated-histories` if there is no merge base
    (the first update). Stops if the merge didn't start (no `MERGE_HEAD`).
 4. For each **repo-owned path** (`CLAUDE.md README.md .claude docs .github/template-cleanup
-   .devcontainer/compose.project.yml .devcontainer/apt-packages.txt LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
+   .devcontainer/compose.project.yml .devcontainer/apt-packages.txt .devcontainer/tex-packages.txt LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
    .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
    .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release
    .devcontainer/template-dev`):
@@ -101,7 +101,7 @@ template. Same steps as above, plus:
   `.devcontainer/*/devcontainer.json` and would list it as a (broken) variant.
 - **Seeding**, only where missing (tracked or on disk) and not ignored:
   `.devcontainer/compose.project.yml` (repo-owned, so otherwise dropped, but every variant lists it),
-  `.devcontainer/apt-packages.txt` (repo-owned, empty),
+  `.devcontainer/apt-packages.txt` and `.devcontainer/tex-packages.txt` (repo-owned, empty),
   `.claude/settings.json` (dropped when the repo already has a `.claude/`), and `CLAUDE.md`,
   `.claude/overview.md`, `.claude/memory/MEMORY.md` from `.github/template-cleanup/files/`. This is
   what "Use this template" plus the cleanup would have provided.

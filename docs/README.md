@@ -25,13 +25,14 @@ user-facing guides that stay in every derived repo start at [.devcontainer/READM
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
 ├── base/devcontainer.json       no toolchain
-├── latex/                       latex toolchain + LaTeX Workshop (apt-packages.txt: more TeX Live bundles)
+├── latex/                       latex toolchain + LaTeX Workshop
 ├── template-dev/                template repo only: base + test/lint tools (removed by cleanup)
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
 ├── compose.project.yml          project compose file: mounts, services, resources (project-owned)
 ├── apt-packages.txt             project apt packages, all variants (project-owned, ships empty)
+├── tex-packages.txt             project TeX Live packages, latex toolchain (project-owned, ships empty)
 ├── <variant>/apt-packages.txt   variant apt packages (Python variants: OpenCV runtime by default)
 ├── .dockerignore                build context = .devcontainer/; only Dockerfile, toolchains, apt list
 └── shared/
@@ -57,7 +58,7 @@ user-facing guides that stay in every derived repo start at [.devcontainer/READM
     └── toolchains/
         ├── uv/                  apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml
         ├── node/                same files; init-host.sh writes .generated/compose.node.yml
-        └── latex/               apt-packages.txt (TeX Live), install.sh, compose.yml (empty)
+        └── latex/               all five + tex-packages.txt; post-start.sh installs TeX Live into a shared volume
 .github/
 ├── workflows/template-cleanup.yml
 └── template-cleanup/            cleanup.sh + files/ (generic CLAUDE.md, skeletons, jokes)

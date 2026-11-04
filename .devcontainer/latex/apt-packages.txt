@@ -2,5 +2,4 @@
 # variants, optional). Whitespace-separated, "#" comments, optional version pins (pkg=version).
 # Read-only to the agent; rebuild after changes.
 #
-# More TeX Live bundles go here, e.g. texlive-fonts-extra (~1 GB), texlive-lang-german,
-# texlive-lang-european; `apt-cache search texlive-` lists them. texlive-full: everything (~6 GB).
+# TeX packages don't go here: TeX Live comes from upstream, see .devcontainer/tex-packages.txt.

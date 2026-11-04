@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 # latex toolchain, user-level setup. Runs at image build as the container user.
-# TeX Live itself comes from apt-packages.txt; nothing is persisted in volumes. Packages installed
-# into ~/texmf (by hand or tlmgr --usermode) are lost on rebuild: durable additions go into the
-# project's apt list or the project itself.
+# TeX Live itself is installed at container start (post-start.sh) into the shared volume, like the
+# node toolchain's Node versions: volumes aren't mounted at build time.
 set -euo pipefail
 
-# TEXMFHOME (default ~/texmf): single .sty/.cls files under ~/texmf/tex/latex/<name>/ are found
-# without mktexlsr
+# Mount point of the TeX Live volume (toolchains/latex/compose.yml); created here so a fresh named
+# volume inherits the user's ownership, which lets tlmgr install without root
+mkdir -p "$HOME/.local/texlive"
+# TEXMFHOME (~/texmf): single .sty/.cls files under ~/texmf/tex/latex/<name>/; lost on rebuild
 mkdir -p "$HOME/texmf/tex/latex"
 
-# LuaLaTeX/fontspec build a font name database on first use (slow); build it into the image so it
-# isn't rebuilt on the first run after every rebuild. Not fatal: lualatex rebuilds it if missing.
-if command -v luaotfload-tool > /dev/null; then
-    luaotfload-tool --update > /dev/null 2>&1 \
-        || echo "latex toolchain: WARNING luaotfload-tool --update failed; the first lualatex run builds the font database" >&2
+# Shell setup, sourced from .bashrc before the interactive guard, so non-interactive shells (the
+# agent's, VS Code's environment probe for LaTeX Workshop) get it too: TeX Live's binaries of
+# $TEXLIVE_YEAR (set by compose.yml) on PATH, once
+mkdir -p "$HOME/.config"
+cat > "$HOME/.config/latex-toolchain.sh" << 'SH'
+if [ -n "${TEXLIVE_YEAR:-}" ]; then
+    for d in "${TEXLIVE_ROOT:-$HOME/.local/texlive}/$TEXLIVE_YEAR"/bin/*-linux; do
+        [ -d "$d" ] || continue
+        case ":$PATH:" in *":$d:"*) ;; *) export PATH="$d:$PATH" ;; esac
+    done
 fi
+SH
+sed -i '3i source ~/.config/latex-toolchain.sh 2>/dev/null || true' "$HOME/.bashrc"

@@ -1,16 +1,13 @@
-# System packages for the latex toolchain (TeX Live from Ubuntu 24.04, i.e. TeX Live 2023),
-# installed as root at image build. A curated set, not texlive-full (several GB more).
-# More TeX Live bundles (texlive-fonts-extra, texlive-lang-german, ...) belong in
-# .devcontainer/apt-packages.txt or .devcontainer/<variant>/apt-packages.txt, not here.
-# LaTeX and the common package bundles
-texlive-latex-base texlive-latex-recommended texlive-latex-extra
-texlive-fonts-recommended lmodern cm-super
-texlive-science texlive-pictures texlive-publishers texlive-bibtex-extra
-# Engines besides pdfTeX
-texlive-luatex texlive-xetex
-# Build and editor tools (LaTeX Workshop): latexmk, biber (biblatex), chktex (lint),
-# latexindent (format; in texlive-extra-utils, its Perl modules are only recommended)
-latexmk biber chktex
-texlive-extra-utils libyaml-tiny-perl libfile-homedir-perl
-# epstopdf and friends; Pygments for minted (needs -shell-escape)
-texlive-font-utils ghostscript python3-pygments
+# System packages for the latex toolchain, installed as root at image build. TeX Live itself is
+# not installed from apt: post-start.sh installs upstream TeX Live into a shared volume. These are
+# what upstream TeX Live expects from the system on Linux.
+# Project-specific packages belong in .devcontainer/apt-packages.txt or
+# .devcontainer/<variant>/apt-packages.txt, not here; TeX packages in .devcontainer/tex-packages.txt.
+# install-tl, tlmgr and latexindent are Perl; latexindent's modules aren't bundled on Linux
+perl libyaml-tiny-perl libfile-homedir-perl
+# Signature checks: post-start.sh verifies the installer, install-tl and tlmgr the package database
+gnupg
+# XeTeX/fontspec find system fonts through fontconfig; Ghostscript for epstopdf and dvipdfmx
+fontconfig ghostscript
+# Pygments for minted (needs -shell-escape)
+python3-pygments

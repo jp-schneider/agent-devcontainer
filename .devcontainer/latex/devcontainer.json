@@ -28,7 +28,8 @@
     "REMOTE_CONTAINERS_DISPLAY_SOCK": null,
     "WAYLAND_DISPLAY": null
   },
-  // latex toolchain: TeX Live 2023 from apt (curated set, see shared/toolchains/latex/apt-packages.txt)
+  // latex toolchain: upstream TeX Live in a shared volume, installed on first start (see
+  // shared/toolchains/latex/post-start.sh); project packages in .devcontainer/tex-packages.txt
   "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "latex", "latex"],
   // postStartCommand: toolchain hooks via shared/post-start.sh (none for latex), then clean up sockets
   // created before VS Code attaches

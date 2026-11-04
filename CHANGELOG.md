@@ -10,10 +10,14 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 ## [Unreleased]
 
 ### Added
-- **LaTeX: `latex` variant and `latex` toolchain.** TeX Live 2023 from Ubuntu's packages (a curated
-  set, not `texlive-full`), latexmk, biber, chktex, latexindent; the variant adds LaTeX Workshop
-  (build on save, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
-  (`initialize.sh <variant> … latex`). More TeX Live bundles go into an apt list; see
+- **LaTeX: `latex` variant and `latex` toolchain.** Upstream TeX Live 2026 (a curated set, not
+  scheme-full) with latexmk, biber, chktex and latexindent; the variant adds LaTeX Workshop (build
+  on save, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
+  (`initialize.sh <variant> … latex`). TeX Live is installed on the first start into a Docker
+  volume shared across projects (`agent-sandbox-latex-texlive`, ~1.5 GB, several minutes); the
+  installer is verified against TeX Live's signing key (pinned fingerprint). `tlmgr` works
+  without root. Project packages go in the new `.devcontainer/tex-packages.txt` (yours, like
+  `apt-packages.txt`; seeded by `--adopt`, create it in existing repos); see
   `.devcontainer/docs/customizing.md#how-do-i-write-latex`. No display is forwarded, so desktop
   editors like TeXstudio don't run in the container.
 
