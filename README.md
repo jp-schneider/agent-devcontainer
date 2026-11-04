@@ -38,11 +38,11 @@ agents with more access than they intend, and because it will get better with mo
 3. Open it in VS Code with the
    [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
    extension, then choose **"Reopen in Container"** and pick a variant.
-4. Read [.devcontainer/README.md](.devcontainer/README.md) (getting started, everyday use) and
-   [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) (extensions, packages, mounts, FAQ).
+4. Read [.devcontainer/README.md](.devcontainer/README.md): it links the guides in
+   [.devcontainer/docs/](.devcontainer/docs/) (getting started, everyday use, customizing, …).
 
 **Existing repository?** Follow
-[Getting started → B. Existing repository](.devcontainer/README.md#b-existing-repository) instead.
+[Getting started → B. Existing repository](.devcontainer/docs/getting-started.md#b-existing-repository) instead.
 
 **Requirements:**
 - Docker with Compose v2.
@@ -65,7 +65,7 @@ thought of.
   - no protection for code *you* run on the host afterwards;
   - the container shares the host kernel.
 
-  The full list: [Known limitations](.devcontainer/README.md#known-limitations).
+  The full list: [Known limitations](.devcontainer/docs/security.md#known-limitations).
 - **Review what the agent changed** before running anything on your host. Don't give it access to
   anything you couldn't afford to lose.
 - **As is:** the software comes without warranty of any kind.
@@ -85,7 +85,7 @@ whatever your experience level. Especially valuable:
 - **Security review:** threat-model gaps, escape paths I missed, flawed assumptions in
   [docs/security.md](docs/security.md). Even "I'm not sure this is safe because…" is useful.
 - **Closing known limitations:** egress filtering, pinning the supply chain, and anything else from
-  the [list](.devcontainer/README.md#known-limitations).
+  the [list](.devcontainer/docs/security.md#known-limitations).
 - **Testing on other hosts:** native Linux, macOS, other GPUs.
 - **New variants and toolchains:** conda, pyenv + poetry, Playwright, … (see
   [docs/extending.md](docs/extending.md)).
@@ -111,9 +111,8 @@ Details: [SECURITY.md](SECURITY.md).
 
 | Where | What |
 |---|---|
-| [.devcontainer/README.md](.devcontainer/README.md) | Getting started (new or existing repo), everyday use, updating, known limitations (kept in your repo) |
-| [.devcontainer/CUSTOMIZING.md](.devcontainer/CUSTOMIZING.md) | FAQ and best practices: extensions, packages, software, mounts, services (kept in your repo) |
-| [.devcontainer/REFERENCE.md](.devcontainer/REFERENCE.md) | How it works: compose files, protected paths, env files, toolchains (kept in your repo) |
+| [.devcontainer/README.md](.devcontainer/README.md) | Entry point: what the agent can and can't do, index of the guides (kept in your repo) |
+| [.devcontainer/docs/](.devcontainer/docs/) | User guides: getting started, everyday use, updating, customizing, configuration, security and known limitations, troubleshooting (kept in your repo) |
 | [docs/](docs/README.md) | Architecture, security model, template lifecycle, extending, testing (template repo only) |
 
 Files only relevant to developing this template: `CLAUDE.md`, `docs/`, `.github/template-cleanup/`.

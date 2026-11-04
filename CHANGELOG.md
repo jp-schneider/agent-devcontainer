@@ -5,9 +5,27 @@ versions follow [Semantic Versioning](https://semver.org/). While the version is
 release may contain breaking changes; they are listed under **Changed** with migration notes.
 
 Repos created from the template can update with `.devcontainer/update-from-template.sh <tag>`
-(see [.devcontainer/README.md](.devcontainer/README.md#updating-from-the-template)).
+(see [.devcontainer/docs/updating.md](.devcontainer/docs/updating.md)).
 
 ## [Unreleased]
+
+## [0.1.5] - 2026-11-04
+
+### Changed
+- **User docs moved to `.devcontainer/docs/`, one page per task:** getting started, everyday use,
+  updating, customizing, configuration, security (incl. known limitations), troubleshooting.
+  `.devcontainer/README.md` is now the entry page with an index. `REFERENCE.md` became
+  `docs/configuration.md` (protected paths moved to `docs/security.md`), `CUSTOMIZING.md` became
+  `docs/customizing.md` (troubleshooting moved to `docs/troubleshooting.md`). Links to the old files
+  or to README sections from outside the repo need updating.
+
+### Added
+- **`docs/updating.md`: full usage of `update-from-template.sh`:** arguments and options, what each
+  step does, which files are yours and which the template's, merge base and squash merges, ignored
+  files in the way, and a problems table. Notable: an existing `template` remote is used as it is;
+  `<template-url>` only applies when there is none. `git merge --abort` undoes an update.
+- **`docs/configuration.md`: all `.env` settings in one table** (`DEVCONTAINER_GIT_SUBMODULES_WRITABLE`,
+  `DEVCONTAINER_EDITABLE_BY_AGENT`, the LM Studio ones, your own `DEVCONTAINER_*` variables).
 
 ## [0.1.4] - 2026-10-26
 
@@ -38,7 +56,7 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 - **Documented: projects are told apart by folder name only.** Two checkouts with the same folder
   name share the compose project, container, network and volumes (Claude config with login,
   venvs), and reach each other's sidecars. New entry in
-  [Known limitations](.devcontainer/README.md#known-limitations); unique names are planned for 0.2.
+  [Known limitations](.devcontainer/docs/security.md#known-limitations); unique names are planned for 0.2.
 - **Host-trusted paths in submodules are read-only.** Before, only the workspace root's
   `.devcontainer/`, `.vscode/`, `.claude/settings*.json` and `.mcp.json` were protected; the agent
   could change them in a submodule (or allowlisted nested repo) and run code on the host when that

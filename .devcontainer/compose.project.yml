@@ -1,6 +1,6 @@
 # Project-specific compose additions: mounts, services, resources. Yours to edit; template
 # updates leave this file alone. Listed in every variant after the template files and before the
-# generated overlays, so the protections still win. See CUSTOMIZING.md.
+# generated overlays, so the protections still win. See docs/customizing.md.
 #
 # ${DEVCONTAINER_*} works for every DEVCONTAINER_* line in the root .env (host-only; e.g.
 # DATA_PATH for local runs and DEVCONTAINER_DATA_PATH for the container can differ). Values you use here

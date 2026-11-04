@@ -38,7 +38,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
 | `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup, `shared/post-start.sh`, each toolchain's overlay listed |
-| `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag) |
+| `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag); relative links in the kept docs resolve after cleanup |
+| `docs.bats` | relative links and anchors in all tracked Markdown resolve (`md-links.py`, GitHub heading slugs); the checker itself on a broken file link and anchor |
 | `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
 | `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not |
 | `adopt.bats` | `--adopt` in a foreign repo: legacy move (content, mode), seeding, `.gitignore` union, remaining conflicts, warnings, then a regular update; refusals |
