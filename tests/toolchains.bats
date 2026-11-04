@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Toolchain hooks: shared/post-start.sh (dispatch to each toolchain's post-start.sh) and the node
-# toolchain's init-host.sh (package dir discovery, generated overlay, mount points, host dirs);
-# the latex toolchain's install.sh and apt list.
+# toolchain's init-host.sh (package dir discovery, generated overlay, mount points, host dirs).
+# The latex toolchain is in latex.bats.
 
 load helpers
 
@@ -128,40 +128,4 @@ for v in d["services"]["claude-code"]["volumes"]:
     [ "$status" -eq 0 ]
     output_has "volume name nm-a_b already used"
     [ "$(grep -c 'type: volume' "$GEN/compose.node.yml")" = 1 ]
-}
-
-# latex_install: runs the latex install.sh as the image build would, with a fake luaotfload-tool
-# that exits with $1
-latex_install() {
-    export HOME="$WORK/home"
-    mkdir -p "$HOME" "$WORK/bin"
-    printf '#!/bin/sh\necho "$@" >> "%s/luaotfload.log"\nexit %s\n' "$WORK" "$1" > "$WORK/bin/luaotfload-tool"
-    chmod +x "$WORK/bin/luaotfload-tool"
-    run "$BASH_UNDER_TEST" "$SHARED/toolchains/latex/install.sh"
-}
-
-@test "latex install: creates TEXMFHOME and builds the luaotfload font database" {
-    latex_install 0
-    [ "$status" -eq 0 ]
-    [ -d "$WORK/home/texmf/tex/latex" ]
-    grep -qx -- '--update' "$WORK/luaotfload.log"
-}
-
-@test "latex install: a failing luaotfload-tool warns but doesn't fail the build" {
-    latex_install 1
-    [ "$status" -eq 0 ]
-    output_has "WARNING luaotfload-tool --update failed"
-}
-
-@test "latex apt list: parses to package names only, with the tools LaTeX Workshop uses" {
-    # Same parsing as the Dockerfile: strip # comments, whitespace-separated
-    pkgs=" $(sed 's/#.*//' "$SHARED/toolchains/latex/apt-packages.txt" | tr -s ' \n' '  ') "
-    for p in $pkgs; do
-        [[ "$p" =~ ^[a-z0-9][a-z0-9.+-]+$ ]] || { echo "not a package name: $p" >&2; false; }
-    done
-    for p in texlive-latex-extra latexmk biber chktex texlive-extra-utils texlive-luatex texlive-xetex; do
-        [[ "$pkgs" == *" $p "* ]] || { echo "missing: $p" >&2; false; }
-    done
-    # Curated, not the full distribution
-    [[ "$pkgs" != *" texlive-full "* ]]
 }
