@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-04
+
 ### Changed
 - **User docs moved to `.devcontainer/docs/`, one page per task:** getting started, everyday use,
   updating, customizing, configuration, security (incl. known limitations), troubleshooting.
