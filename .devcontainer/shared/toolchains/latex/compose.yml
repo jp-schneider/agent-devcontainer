@@ -1,0 +1,4 @@
+# Overlay: latex toolchain (TeX Live from apt, see apt-packages.txt). Nothing to persist and no
+# environment to pass; the file exists so variants list it like every toolchain's overlay
+# (initialize.sh warns about a toolchain whose compose.yml is missing from the list).
+services: {}

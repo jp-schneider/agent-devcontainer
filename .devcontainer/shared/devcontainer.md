@@ -13,6 +13,10 @@ None by default: the Docker socket is not mounted and the `docker` CLI is not in
 None by default. If the variant includes the node toolchain (`DEVCONTAINER_TOOLCHAINS` contains
 `node`), see `devcontainer.node.md`.
 
+## LaTeX
+None by default. If the variant includes the latex toolchain (`DEVCONTAINER_TOOLCHAINS` contains
+`latex`), see `devcontainer.latex.md`.
+
 ## Local model
 None by default. If the variant enables an LM Studio overlay (`LMSTUDIO_BASE_URL` is set), see
 `devcontainer.lmstudio.md`.

@@ -101,6 +101,15 @@ apt_list() {
     not_grep 'volume create' "$WORK/docker.log"
 }
 
+@test "latex variant: the latex toolchain, overlay listed, no volumes" {
+    init latex latex
+    [ "$status" -eq 0 ]
+    grep -qx 'TOOLCHAINS="latex"' "$WS/.devcontainer/shared/.env"
+    case "$output" in *"WARNING toolchain latex"*) false ;; esac
+    not_grep 'volume create' "$WORK/docker.log"
+    [ ! -s "$GEN/mountpoints.txt" ]
+}
+
 @test "template-dev variant: project + its dev packages, no toolchain" {
     init template-dev
     [ "$status" -eq 0 ]

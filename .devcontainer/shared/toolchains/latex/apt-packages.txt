@@ -1,0 +1,16 @@
+# System packages for the latex toolchain (TeX Live from Ubuntu 24.04, i.e. TeX Live 2023),
+# installed as root at image build. A curated set, not texlive-full (several GB more).
+# More TeX Live bundles (texlive-fonts-extra, texlive-lang-german, ...) belong in
+# .devcontainer/apt-packages.txt or .devcontainer/<variant>/apt-packages.txt, not here.
+# LaTeX and the common package bundles
+texlive-latex-base texlive-latex-recommended texlive-latex-extra
+texlive-fonts-recommended lmodern cm-super
+texlive-science texlive-pictures texlive-publishers texlive-bibtex-extra
+# Engines besides pdfTeX
+texlive-luatex texlive-xetex
+# Build and editor tools (LaTeX Workshop): latexmk, biber (biblatex), chktex (lint),
+# latexindent (format; in texlive-extra-utils, its Perl modules are only recommended)
+latexmk biber chktex
+texlive-extra-utils libyaml-tiny-perl libfile-homedir-perl
+# epstopdf and friends; Pygments for minted (needs -shell-escape)
+texlive-font-utils ghostscript python3-pygments
