@@ -34,14 +34,14 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | Suite | Covers |
 |---|---|
 | `protect-paths.bats` | read-only binds (main worktree, linked worktree, submodules, submodule workspace with generated pointer/config, `commondir` placeholder and planted-`commondir` aborts, `DEVCONTAINER_GIT_SUBMODULES_WRITABLE`, allowlisted repos and pointers), planted-repo aborts, secret masks (defaults, project file, `!` exceptions), awkward paths, `DEVCONTAINER_EDITABLE_BY_AGENT` |
-| `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
+| `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, the `latex` variant, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
 | `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup, `shared/post-start.sh`, each toolchain's overlay listed |
 | `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag); relative links in the kept docs resolve after cleanup |
 | `docs.bats` | relative links and anchors in all tracked Markdown resolve (`md-links.py`, GitHub heading slugs); the checker itself on a broken file link and anchor |
-| `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
-| `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not |
+| `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths; latex `install.sh` (font database, non-fatal) and apt list (package names, curated) |
+| `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not; LaTeX build files ignored, sources, `*.log` and `*.out` not |
 | `adopt.bats` | `--adopt` in a foreign repo: legacy move (content, mode), seeding, `.gitignore` union, remaining conflicts, warnings, then a regular update; refusals |
 
 **Rules for tests:**
@@ -63,7 +63,7 @@ After changes to the Dockerfile, compose files or host scripts:
    and that the expected mounts and args are present.
 2. **Rebuild** each affected variant ("Rebuild and Reopen in Container").
 3. **Inside the container:**
-   - `claude --version` and the toolchain tools (`uv --version`; node: `node -v`, `pnpm -v`, `findmnt` on each `node_modules`).
+   - `claude --version` and the toolchain tools (`uv --version`; node: `node -v`, `pnpm -v`, `findmnt` on each `node_modules`; latex: `latexmk -v`, `lualatex`/`biber` on a test document, LaTeX Workshop builds on save and shows the PDF, `latexindent` formats).
    - `ls /usr/lib/wsl` (WSL only).
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.

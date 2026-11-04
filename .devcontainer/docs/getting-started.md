@@ -101,9 +101,11 @@ which one to use when you reopen in the container.
 |---|---|---|
 | `python-uv-gpu` | Python with CUDA (`nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04`), uv, ruff, ty | yes |
 | `python-uv-cpu` | Python without GPU (`ubuntu:24.04`), uv, ruff, ty | no |
+| `latex` | LaTeX documents: TeX Live 2023 (curated set), latexmk, biber, LaTeX Workshop (build on save, PDF tab, SyncTeX) | no |
 | `base` | anything else; core tools only (git, curl, jq, ripgrep, vim, nano, …). Add packages or a [toolchain](configuration.md#toolchains) | no |
 
 All variants of a worktree share one container name, so switching variants replaces the container.
-Node can be added to any variant ([customizing.md](customizing.md#how-do-i-use-node-npm-pnpm)).
+Node and LaTeX can be added to any variant ([Node](customizing.md#how-do-i-use-node-npm-pnpm),
+[LaTeX](customizing.md#how-do-i-write-latex)).
 The template repository also has a `template-dev` variant for developing the template itself; it is
 removed from new projects.

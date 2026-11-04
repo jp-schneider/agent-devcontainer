@@ -65,6 +65,7 @@ Pick by what it is:
 | What | Where | Persists across rebuilds? |
 |---|---|---|
 | Node (npm, pnpm, yarn) | the `node` toolchain, see [How do I use Node?](#how-do-i-use-node-npm-pnpm) | yes (volumes) |
+| LaTeX | the `latex` variant or toolchain, see [How do I write LaTeX?](#how-do-i-write-latex) | yes (in the image) |
 | Other language runtime / common tool (Go, Rust, AWS CLI, …) | [Dev Container Feature](https://containers.dev/features) in `devcontainer.json` | yes (in the image) |
 | Python CLI tools (pre-commit, nox, …) | your project's dev dependencies (`uv add --dev …`), run via `uv run` | yes (venv volume) |
 | User-level tools for everyone in the project | `postCreateCommand` in `devcontainer.json` (e.g. `uv tool install …`) | re-run on each container creation |
@@ -196,6 +197,48 @@ Then rebuild. Pin the Node version with `.nvmrc` or `.node-version` and the pack
 `"packageManager": "pnpm@<version>"` in `package.json`. `node_modules` of every package directory
 lives in its own volume. **After adding a package directory, rebuild** to give it one. Details:
 [configuration.md](configuration.md#node-details).
+
+### How do I write LaTeX?
+
+Use the `latex` variant, or add the `latex` toolchain to yours (e.g. LaTeX next to Python). In the
+variant's `devcontainer.json`, add its compose file before `compose.project.yml`, `latex` to
+`initializeCommand`, and the LaTeX Workshop extension:
+
+```jsonc
+"dockerComposeFile": [
+  "../shared/compose.core.yml",
+  "../shared/toolchains/uv/compose.yml",
+  "../shared/toolchains/latex/compose.yml",
+  "../compose.project.yml",
+  "../.generated/compose.host.yml",
+  "../.generated/compose.protect.yml"
+],
+"initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "<variant>", "uv", "latex"],
+// in customizations.vscode:
+"settings": { "latex-workshop.latex.autoBuild.run": "onSave", "latex-workshop.formatting.latex": "latexindent" },
+"extensions": [ "james-yu.latex-workshop" ]
+```
+
+Then rebuild. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab
+(SyncTeX: Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
+TeXstudio and other desktop editors don't run in the container by design.
+
+**Missing a package** (`File 'x.sty' not found`):
+- **A TeX Live bundle (the normal way):** add it to `.devcontainer/apt-packages.txt` (or the
+  variant's) and rebuild, e.g. `texlive-lang-german`, `texlive-fonts-extra` (~1 GB),
+  `texlive-humanities`. `apt-cache search texlive-` lists them; `texlive-full` is everything (~6 GB).
+- **A single `.sty`/`.cls`** (a conference template, a package not in Ubuntu): put it next to the
+  document, or in a folder of the project and commit it. Works immediately.
+- **`tlmgr`** doesn't manage Ubuntu's TeX Live. `tlmgr --usermode` can install into `~/texmf`, but
+  only from the archive matching TeX Live 2023
+  (`tlmgr init-usertree`, then `tlmgr --usermode --repository
+  https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2023/tlnet-final install <pkg>`), and
+  `~/texmf` is lost on rebuild. Best effort; prefer the two ways above.
+
+**`-shell-escape`** (minted, some TikZ externalisation setups) lets a document run arbitrary
+commands. The default recipe doesn't pass it; enable it in your own LaTeX Workshop recipe or
+`latexmkrc` only for documents you trust. `.gitignore` ignores the usual build files (`*.aux`,
+`*.fdb_latexmk`, `*.synctex.gz`, …) but not `*.log`; `latexmk -c` removes them.
 
 ### How do I use the GPU or give the container more resources?
 

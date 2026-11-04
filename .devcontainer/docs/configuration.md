@@ -176,6 +176,18 @@ No variant ships with it; add it to one (see [customizing.md](customizing.md#how
   version's docs for which of these it reads). The pnpm store location is set in the image
   (`~/.config/pnpm/rc`).
 
+### latex details
+
+The `latex` variant ships with it; other variants can add it (see [customizing.md](customizing.md#how-do-i-write-latex)).
+
+- **TeX Live 2023** from Ubuntu 24.04's packages, a curated set (`shared/toolchains/latex/apt-packages.txt`):
+  the common LaTeX bundles (recommended, extra, science, pictures, publishers, bibtex-extra),
+  LuaLaTeX and XeLaTeX, latexmk, biber, chktex, latexindent, epstopdf, Pygments. Not
+  `texlive-full` or `texlive-fonts-extra`; add those to an apt list if you need them.
+- **Nothing is persisted in volumes:** everything is in the image. `install.sh` builds LuaLaTeX's
+  font database at image build, so the first `lualatex` run isn't slow after each rebuild.
+  `~/texmf` (`TEXMFHOME`) exists but is lost on rebuild.
+
 ## Claude Code
 
 Claude Code is installed at image build time. Rebuild the container to update it. Its config

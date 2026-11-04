@@ -9,6 +9,18 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Added
+- **LaTeX: `latex` variant and `latex` toolchain.** TeX Live 2023 from Ubuntu's packages (a curated
+  set, not `texlive-full`), latexmk, biber, chktex, latexindent; the variant adds LaTeX Workshop
+  (build on save, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
+  (`initialize.sh <variant> … latex`). More TeX Live bundles go into an apt list; see
+  `.devcontainer/docs/customizing.md#how-do-i-write-latex`. No display is forwarded, so desktop
+  editors like TeXstudio don't run in the container.
+
+### Changed
+- **`.gitignore` ignores LaTeX build files** (`*.aux`, `*.bbl`, `*.bcf`, `*.blg`, `*.fdb_latexmk`,
+  `*.fls`, `*.run.xml`, `*.synctex.gz`, `*.toc`). Not `*.log` or `*.out`, which other tools use too.
+
 ## [0.1.5] - 2026-11-04
 
 ### Changed

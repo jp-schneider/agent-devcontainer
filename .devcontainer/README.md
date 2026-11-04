@@ -17,7 +17,7 @@ container.
 | [Getting started](docs/getting-started.md) | requirements, new project or existing repository, check that it works, choosing a variant |
 | [Everyday use](docs/everyday-use.md) | rebuilding, `.env` vs. `container.env`, reviewing, pushing |
 | [Updating](docs/updating.md) | pulling template updates with `update-from-template.sh`, adopting the template |
-| [Customizing](docs/customizing.md) | how-tos: extensions, packages, mounts, services, Node, GPU, local models; best practices |
+| [Customizing](docs/customizing.md) | how-tos: extensions, packages, mounts, services, Node, LaTeX, GPU, local models; best practices |
 | [Configuration](docs/configuration.md) | how it is composed: compose files, environment files, overlays, packages, toolchains |
 | [Security](docs/security.md) | hardening, protected paths, known limitations |
 | [Troubleshooting](docs/troubleshooting.md) | symptoms and fixes |
