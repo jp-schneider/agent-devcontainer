@@ -19,7 +19,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
   the commit SHA.
 - **Also needed:** `git`, `jq`, Python 3 with PyYAML. `uv run --with pyyaml` is used if
   PyYAML isn't installed.
-- **The `template-dev` variant** has all of this, plus `shellcheck`. Inside it, `tests/run.sh`
+- **The `template-dev` variant** has all of this, plus `shellcheck` (`template-complete-dev`:
+  the same plus every toolchain). Inside it, `tests/run.sh`
   and the CI lint step
   (`git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning`)
   run as they are.
@@ -34,7 +35,7 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | Suite | Covers |
 |---|---|
 | `protect-paths.bats` | read-only binds (main worktree, linked worktree, submodules, submodule workspace with generated pointer/config, `commondir` placeholder and planted-`commondir` aborts, `DEVCONTAINER_GIT_SUBMODULES_WRITABLE`, allowlisted repos and pointers), planted-repo aborts, secret masks (defaults, project file, `!` exceptions), awkward paths, `DEVCONTAINER_EDITABLE_BY_AGENT` |
-| `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
+| `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, the `latex` variant, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
 | `variants.bats` | invariants across variants: identical `remoteEnv` and security settings (credential relays off), `initializeCommand`, compose order, socket cleanup in `postStartCommand` and the compose `command`, `shared/post-attach.sh` in `postAttachCommand`, `shared/post-start.sh`, each toolchain's overlay listed |
@@ -43,7 +44,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag); relative links in the kept docs resolve after cleanup |
 | `docs.bats` | relative links and anchors in all tracked Markdown resolve (`md-links.py`, GitHub heading slugs); the checker itself on a broken file link and anchor |
 | `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
-| `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not |
+| `latex.bats` | latex `post-start.sh` with fake curl/gpg/install-tl/tlmgr: signature by the pinned key (another key bundled with the installer is rejected), checksum, release year, interrupted install, offline, install-tl/tlmgr failures, lock, package names from both lists (only missing ones; non-names skipped); one test with real gpg (skipped without gpg); `init-host.sh`, `install.sh` PATH snippet, package lists |
+| `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not; LaTeX build files ignored, sources, `*.log` and `*.out` not |
 | `adopt.bats` | `--adopt` in a foreign repo: legacy move (content, mode), seeding, `.gitignore` union, remaining conflicts, warnings, then a regular update; refusals |
 
 **Rules for tests:**
@@ -65,7 +67,7 @@ After changes to the Dockerfile, compose files or host scripts:
    and that the expected mounts and args are present.
 2. **Rebuild** each affected variant ("Rebuild and Reopen in Container").
 3. **Inside the container:**
-   - `claude --version` and the toolchain tools (`uv --version`; node: `node -v`, `pnpm -v`, `findmnt` on each `node_modules`).
+   - `claude --version` and the toolchain tools (`uv --version`; node: `node -v`, `pnpm -v`, `findmnt` on each `node_modules`; latex: first start installs TeX Live (log in `~/.local/texlive/install-2026.log`; signature check passes with the pinned fingerprint), `latexmk -v`, `lualatex`/`xelatex`/`biber` on a test document, a package from `.devcontainer/tex-packages.txt` installed on restart, `tlmgr install` works without root, a second project reuses the volume without downloading, LaTeX Workshop finds `latexmk` (PATH via the environment probe), builds on save, shows the PDF, `latexindent` formats).
    - `ls /usr/lib/wsl` (WSL only).
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.

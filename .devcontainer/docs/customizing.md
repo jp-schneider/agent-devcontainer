@@ -65,6 +65,7 @@ Pick by what it is:
 | What | Where | Persists across rebuilds? |
 |---|---|---|
 | Node (npm, pnpm, yarn) | the `node` toolchain, see [How do I use Node?](#how-do-i-use-node-npm-pnpm) | yes (volumes) |
+| LaTeX | the `latex` variant or toolchain, see [How do I write LaTeX?](#how-do-i-write-latex) | yes (shared volume) |
 | Other language runtime / common tool (Go, Rust, AWS CLI, …) | [Dev Container Feature](https://containers.dev/features) in `devcontainer.json` | yes (in the image) |
 | Python CLI tools (pre-commit, nox, …) | your project's dev dependencies (`uv add --dev …`), run via `uv run` | yes (venv volume) |
 | User-level tools for everyone in the project | `postCreateCommand` in `devcontainer.json` (e.g. `uv tool install …`) | re-run on each container creation |
@@ -196,6 +197,62 @@ Then rebuild. Pin the Node version with `.nvmrc` or `.node-version` and the pack
 `"packageManager": "pnpm@<version>"` in `package.json`. `node_modules` of every package directory
 lives in its own volume. **After adding a package directory, rebuild** to give it one. Details:
 [configuration.md](configuration.md#node-details).
+
+### How do I write LaTeX?
+
+Use the `latex` variant, or add the `latex` toolchain to yours (e.g. LaTeX next to Python). In the
+variant's `devcontainer.json`, add its compose file before `compose.project.yml`, `latex` to
+`initializeCommand`, and the LaTeX Workshop extension:
+
+```jsonc
+"dockerComposeFile": [
+  "../shared/compose.core.yml",
+  "../shared/toolchains/uv/compose.yml",
+  "../shared/toolchains/latex/compose.yml",
+  "../compose.project.yml",
+  "../.generated/compose.host.yml",
+  "../.generated/compose.protect.yml"
+],
+"initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "<variant>", "uv", "latex"],
+// in customizations.vscode:
+"settings": {
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.outDir": "%DIR%/output",
+  "latex-workshop.formatting.latex": "latexindent"
+},
+"extensions": [ "james-yu.latex-workshop" ]
+```
+
+Then rebuild. **The first start on a machine installs TeX Live** (upstream, the current release,
+~3.5 GB; from half an hour to two hours, depending on the mirror) into a Docker volume shared by
+all your projects. LaTeX works once that's done; progress is in
+`~/.local/texlive/install-<year>.log`, then in the start log. Later starts take seconds. Saving a `.tex` file builds it with latexmk into `output/` next to it
+(the PDF and all build files; change `latex-workshop.latex.outDir` to move them). The PDF opens
+in a VS Code tab (SyncTeX:
+Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
+TeXstudio and other desktop editors don't run in the container by design.
+
+**More packages:** list them in `.devcontainer/tex-packages.txt` (package or collection names,
+e.g. `siunitx collection-langgerman`) and restart the container; only missing ones are
+installed. `tlmgr search --global --file x.sty` names the package of a missing file. The list is
+yours: template updates don't touch it, and it records what the project needs. Repos that adopted
+the template before the latex toolchain don't have the file yet; create it.
+- `tlmgr install <pkg>` in a terminal works too, without a restart. It lands in the shared volume
+  (all projects see it) and isn't recorded anywhere: prefer the list.
+- A single `.sty`/`.cls` (a conference template, a package not on CTAN): put it next to the
+  document, or in a folder of the project, and commit it.
+- **Updates:** `tlmgr update --self --all` updates every package in the volume, for all projects.
+  Nothing updates automatically.
+- **A new TeX Live release** (each spring): `tlmgr` can't install from the new release's repository
+  into the old one, and the start warns. Update the template; the new release installs next to
+  the old one in the volume (remove the old directory from the volume when no project needs it).
+
+**`-shell-escape`** (minted, some TikZ externalisation setups) lets a document run arbitrary
+commands. The default recipe doesn't pass it; enable it in your own LaTeX Workshop recipe or
+`latexmkrc` only for documents you trust. `.gitignore` ignores the usual build files (`*.aux`,
+`*.fdb_latexmk`, `*.synctex.gz`, …) but not `*.log` or the PDF; `latexmk -c -outdir=output`
+removes them. Building in a terminal: pass `-outdir=output` too, or the files land next to the
+`.tex` file.
 
 ### How do I use the GPU or give the container more resources?
 

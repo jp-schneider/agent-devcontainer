@@ -13,3 +13,13 @@ CLAUDE.local.md
 # node toolchain: per-package node_modules (in the container, a named volume mounted there; on the
 # host, an empty mount point created by toolchains/node/init-host.sh)
 node_modules/
+# LaTeX build artefacts (latex toolchain; `latexmk -c` removes them). Not *.log/*.out: too generic
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.run.xml
+*.synctex.gz
+*.toc

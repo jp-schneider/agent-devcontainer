@@ -9,6 +9,28 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-05
+
+### Added
+- **LaTeX: `latex` variant and `latex` toolchain.** Upstream TeX Live 2026 (a curated set, not
+  scheme-full) with latexmk, biber, chktex and latexindent; the variant adds LaTeX Workshop (build
+  on save into `output/` next to the `.tex` file, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
+  (`initialize.sh <variant> … latex`). TeX Live is installed on the first start into a Docker
+  volume shared across projects (`agent-sandbox-latex-texlive`, ~3.5 GB, up to two hours depending on the mirror); the
+  installer is verified against TeX Live's signing key (pinned fingerprint). `tlmgr` works
+  without root. Project packages go in the new `.devcontainer/tex-packages.txt` (yours, like
+  `apt-packages.txt`; seeded by `--adopt`, create it in existing repos); see
+  `.devcontainer/docs/customizing.md#how-do-i-write-latex`. No display is forwarded, so desktop
+  editors like TeXstudio don't run in the container.
+
+- **Template development: `template-complete-dev` variant** (template repository only, removed by
+  the cleanup): `template-dev` plus every toolchain (uv, node, latex) and their extensions, for
+  working on the toolchains side by side. A test keeps it listing every toolchain.
+
+### Changed
+- **`.gitignore` ignores LaTeX build files** (`*.aux`, `*.bbl`, `*.bcf`, `*.blg`, `*.fdb_latexmk`,
+  `*.fls`, `*.run.xml`, `*.synctex.gz`, `*.toc`). Not `*.log` or `*.out`, which other tools use too.
+
 ## [0.1.6] - 2026-11-05
 
 ### Security
@@ -44,6 +66,7 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 - Because the cleanup now reaches `/tmp/user/<uid>/` and keeps running, `code <file>` in the
   container's terminal stops working a few seconds after attach (the IPC socket is deleted, which
   the old loop meant to do but mostly missed), and so do credential prompts from Source Control and Git Graph.
+
 ## [0.1.5] - 2026-11-04
 
 ### Changed

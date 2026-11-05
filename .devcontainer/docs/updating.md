@@ -77,7 +77,7 @@ template as second parent, and `git merge --abort` returns to where you were.
 | Path | Owner | On update |
 |---|---|---|
 | `.devcontainer/` (except the two below) | template | merged; your edits there can conflict |
-| `.devcontainer/compose.project.yml`, `.devcontainer/apt-packages.txt` | you | never touched |
+| `.devcontainer/compose.project.yml`, `.devcontainer/apt-packages.txt`, `.devcontainer/tex-packages.txt` | you | never touched |
 | `.devcontainer/mask-patterns.txt`, `.devcontainer/allowed-nested-git.txt` | you | not in the template, never touched |
 | `README.md`, `CLAUDE.md`, `.claude/`, `docs/` (repo root), `LICENSE` | you | never touched (the template's `LICENSE` goes to `.devcontainer/LICENSE`) |
 | template-only files (tests, template docs, policies, CI, release scripts) | template repo | never added to your repo |
@@ -129,7 +129,7 @@ On top of a normal [update](#what-the-script-does), `--adopt`:
 - **moves your previous devcontainer config** (everything tracked under `.devcontainer/`, and a root
   `.devcontainer.json`) to `.devcontainer.legacy/`. VS Code doesn't look there;
 - **adds missing files** from the template, never overwriting yours: `.devcontainer/compose.project.yml`
-  (every variant needs it), `.devcontainer/apt-packages.txt` (empty), `.claude/settings.json` (deny rules), and a generic `CLAUDE.md`,
+  (every variant needs it), `.devcontainer/apt-packages.txt` and `.devcontainer/tex-packages.txt` (empty), `.claude/settings.json` (deny rules), and a generic `CLAUDE.md`,
   `.claude/overview.md`, `.claude/memory/MEMORY.md`. Files your `.gitignore` ignores are skipped;
 - **lists tracked files that are now ignored**;
 - refuses to run if the repo already has the template (`.devcontainer/VERSION`),

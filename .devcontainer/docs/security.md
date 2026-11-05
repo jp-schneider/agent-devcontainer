@@ -100,9 +100,10 @@ Known gaps, roughly by importance:
    See [customizing.md](customizing.md).
 8. **Claude deny rules are a second line of defence.** They govern Claude's file tools; a shell
    command like `cat .env` on the host is not reliably covered.
-9. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
-   build time; only the Docker proxy image is pinned by digest.
-10. **Projects are told apart by folder name only.** The compose project, container, Docker
+8. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
+   build time; only the Docker proxy image is pinned by digest. fnm is pinned by checksum; the TeX
+   Live installer is checked against TeX Live's signing key (pinned fingerprint).
+9. **Projects are told apart by folder name only.** The compose project, container, Docker
    network (`<folder>-dev`) and the volumes (Claude config, uv venvs, node_modules) are named after
    the workspace folder's name, not its path. Two checkouts with the same folder name (`~/a/app` and
    `~/b/app`, or two submodules both called `app`) share all of them: starting one replaces the
@@ -111,6 +112,11 @@ Known gaps, roughly by importance:
    other. Give every workspace a distinct folder name. Unique names are planned for 0.2.
    Independently, every container can reach ports published on the host, including those of other
    projects' containers.
+10. **Some volumes are shared across all your projects:** uv's Python installs, node's Node
+    versions and caches, and the latex toolchain's TeX Live. The agent in one project can change
+    what another project runs from them (e.g. replace `latexmk` or `node`). Projects that must
+    not influence each other need separate Docker hosts (or Docker contexts with their own
+    daemon).
 11. **Details:**
     - Single-file read-only mounts keep showing the old version if the host replaces the file
       (git and Claude write by rename) until the container restarts.

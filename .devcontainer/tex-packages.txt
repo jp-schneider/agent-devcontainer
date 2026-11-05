@@ -1,0 +1,8 @@
+# Project TeX Live packages, installed at container start with tlmgr when a variant includes the
+# latex toolchain, on top of the toolchain's set (shared/toolchains/latex/tex-packages.txt).
+# Yours to edit; template updates leave this file alone. Whitespace-separated, "#" comments;
+# package or collection names as on https://ctan.org (`tlmgr search --global --file x.sty`
+# finds the package of a file). Read-only to the agent; restart the container after changes.
+#
+# Example:
+# collection-langgerman siunitx

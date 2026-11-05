@@ -108,7 +108,7 @@ teardown_file() {
 
 @test "cleanup: template-only files removed, marker gone" {
     S="$WORK/after-cleanup"
-    for p in docs tests .vscode/tasks.json .devcontainer/template-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup .github/release; do
+    for p in docs tests .vscode/tasks.json .devcontainer/template-dev .devcontainer/template-complete-dev SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/template-cleanup .github/release; do
         [ ! -e "$S/$p" ] || { echo "still there: $p" >&2; return 1; }
     done
 }
@@ -128,10 +128,11 @@ teardown_file() {
     [ -f "$WORK/after-cleanup/.github/workflows/template-cleanup.yml" ]
     [ -f "$WORK/after-cleanup/.github/workflows/release.yml" ]
     [ -f "$WORK/after-cleanup/.github/workflows/tests.yml" ]
-    # The template moved on since; compare with its v0.1.0 tree (minus the template-only variant)
+    # The template moved on since; compare with its v0.1.0 tree (minus the template-only variants)
     git -C "$WORK/template" archive v0.1.0 .devcontainer | (mkdir -p "$WORK/v010" && cd "$WORK/v010" && tar -xf -)
     [ -d "$WORK/v010/.devcontainer/template-dev" ]
-    diff -rq -x template-dev -x LICENSE "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
+    [ -d "$WORK/v010/.devcontainer/template-complete-dev" ]
+    diff -rq -x template-dev -x template-complete-dev -x LICENSE "$WORK/after-cleanup/.devcontainer" "$WORK/v010/.devcontainer"
 }
 
 @test "cleanup: relative links in the kept Markdown resolve (none into removed files)" {
@@ -183,7 +184,7 @@ teardown_file() {
 
 @test "update 1: template-only files are not merged back in" {
     S="$WORK/after-update1"
-    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests .vscode/tasks.json .github/release .devcontainer/template-dev; do
+    for p in .claude/plans/2026-10-09-00-00-template-only.md .github/template-cleanup SECURITY.md tests .vscode/tasks.json .github/release .devcontainer/template-dev .devcontainer/template-complete-dev; do
         [ ! -e "$S/$p" ] || { echo "re-added: $p" >&2; return 1; }
         not_grep "^$p" "$WORK/after-update1.ls-files"
     done

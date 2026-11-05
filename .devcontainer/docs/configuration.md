@@ -176,6 +176,44 @@ No variant ships with it; add it to one (see [customizing.md](customizing.md#how
   version's docs for which of these it reads). The pnpm store location is set in the image
   (`~/.config/pnpm/rc`).
 
+### latex details
+
+The `latex` variant ships with it; other variants can add it (see [customizing.md](customizing.md#how-do-i-write-latex)).
+
+- **TeX Live from upstream, not from Ubuntu** (which ships 2023): the release in `TEXLIVE_YEAR`
+  (`shared/toolchains/latex/compose.yml`, currently 2026), installed by `post-start.sh` into the
+  external volume `agent-sandbox-latex-texlive`, shared across projects like node's Node versions
+  (`init-host.sh` creates it). Mounted at `~/.local/texlive`; TeX Live is in `<year>/`, owned by
+  the container user, so `tlmgr` works without root. A `.bashrc` snippet puts its `bin/` on
+  `PATH`.
+- **First start:** downloads `install-tl` from `TEXLIVE_REPOSITORY` (default
+  `https://mirror.ctan.org/systems/texlive/tlnet`; set it in `container.env` for another mirror).
+  Before running it, `post-start.sh` checks that the installer's checksum file is signed by TeX
+  Live's key, pinned by fingerprint in the script, and that the installer matches it. `install-tl`
+  and `tlmgr` then check the package database's signature themselves (`gnupg` is installed). It
+  installs `scheme-basic` without docs and sources; the log is `~/.local/texlive/install-<year>.log`.
+  An interrupted install is removed and redone on the next start. Starts of several projects at
+  once take turns (a lock in the volume).
+- **Mirrors:** `mirror.ctan.org` picks a mirror per request, and mirrors lag each other by up to a
+  day or two. The first download fixes one mirror for the installer, its checksum and signature,
+  and `install-tl`; that mirror is recorded in the volume (`<year>/.devcontainer-mirror`).
+  `tlmgr` refuses a mirror that is behind the installation ("older than the local installation"),
+  so package installs try the recorded mirror first, then up to three mirrors via
+  `TEXLIVE_REPOSITORY`. `tlmgr` itself is configured with `TEXLIVE_REPOSITORY`.
+- **Packages:** the toolchain's curated set (`shared/toolchains/latex/tex-packages.txt`: the
+  common LaTeX collections, math/science, pictures, publishers, bibtex-extra, LuaLaTeX, XeLaTeX,
+  latexmk, biber, chktex, latexindent) plus the project's `.devcontainer/tex-packages.txt`. Every
+  start installs what is missing (no network access if nothing is). Names that aren't package
+  names are skipped. LuaLaTeX's font database is built into the volume after installs.
+- **Fonts for XeLaTeX:** XeTeX finds fonts by name through fontconfig, which doesn't know TeX
+  Live's. Every start links TeX Live's fontconfig file to
+  `~/.config/fontconfig/conf.d/09-texlive.conf` and runs `fc-cache` when the link is new (first
+  start, after a rebuild) or packages were installed (~20 s).
+- **apt:** only what upstream TeX Live needs from the system: Perl and latexindent's Perl modules,
+  `gnupg`, `fontconfig`, Ghostscript, Pygments (minted).
+- **Failures don't stop the start.** Offline, a signature or checksum mismatch, or a newer release
+  in the repository leave TeX Live uninstalled (with a warning) and retry on the next start.
+
 ## Claude Code
 
 Claude Code is installed at image build time. Rebuild the container to update it. Its config

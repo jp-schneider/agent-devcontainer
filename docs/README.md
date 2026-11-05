@@ -25,12 +25,15 @@ user-facing guides that stay in every derived repo start at [.devcontainer/READM
 ├── python-uv-gpu/devcontainer.json
 ├── python-uv-cpu/devcontainer.json
 ├── base/devcontainer.json       no toolchain
+├── latex/                       latex toolchain + LaTeX Workshop
 ├── template-dev/                template repo only: base + test/lint tools (removed by cleanup)
+├── template-complete-dev/       template repo only: template-dev + all toolchains (removed by cleanup)
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions
 ├── compose.project.yml          project compose file: mounts, services, resources (project-owned)
 ├── apt-packages.txt             project apt packages, all variants (project-owned, ships empty)
+├── tex-packages.txt             project TeX Live packages, latex toolchain (project-owned, ships empty)
 ├── <variant>/apt-packages.txt   variant apt packages (Python variants: OpenCV runtime by default)
 ├── .dockerignore                build context = .devcontainer/; only Dockerfile, toolchains, apt list
 └── shared/
@@ -48,13 +51,15 @@ user-facing guides that stay in every derived repo start at [.devcontainer/READM
     ├── devcontainer.docker-proxy.md
     ├── devcontainer.lmstudio.md
     ├── devcontainer.node.md
+    ├── devcontainer.latex.md
     ├── post-start.sh            postStartCommand: runs each toolchain's post-start.sh
     ├── compose.lmstudio-{host,sidecar}.yml  opt-in: local LM Studio backend for claude-local
     ├── lmstudio/Dockerfile      llmster sidecar image (pinned, checksum-verified)
     ├── bin/claude-local         Claude Code against LM Studio (copied into the image)
     └── toolchains/
         ├── uv/                  apt-packages.txt, install.sh, init-host.sh, post-start.sh, compose.yml
-        └── node/                same files; init-host.sh writes .generated/compose.node.yml
+        ├── node/                same files; init-host.sh writes .generated/compose.node.yml
+        └── latex/               all five + tex-packages.txt; post-start.sh installs TeX Live into a shared volume
 .github/
 ├── workflows/template-cleanup.yml
 └── template-cleanup/            cleanup.sh + files/ (generic CLAUDE.md, skeletons, jokes)

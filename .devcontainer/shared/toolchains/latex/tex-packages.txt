@@ -1,0 +1,11 @@
+# TeX Live packages and collections of the latex toolchain, installed by post-start.sh with tlmgr
+# on top of scheme-basic (plain TeX, LaTeX, pdfTeX). Projects add theirs in
+# .devcontainer/tex-packages.txt. Whitespace-separated, "#" comments.
+# A curated set, not scheme-full (several GB more).
+collection-latexrecommended collection-latexextra collection-fontsrecommended
+collection-mathscience collection-pictures collection-publishers collection-bibtexextra
+# Engines besides pdfTeX
+collection-luatex collection-xetex
+# Build and editor tools (LaTeX Workshop): latexmk, biber (biblatex), chktex (lint),
+# latexindent (format), epstopdf; cm-super (Type 1 EC fonts), lm (Latin Modern)
+latexmk biber chktex latexindent epstopdf cm-super lm

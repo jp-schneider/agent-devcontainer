@@ -1,0 +1,13 @@
+# System packages for the latex toolchain, installed as root at image build. TeX Live itself is
+# not installed from apt: post-start.sh installs upstream TeX Live into a shared volume. These are
+# what upstream TeX Live expects from the system on Linux.
+# Project-specific packages belong in .devcontainer/apt-packages.txt or
+# .devcontainer/<variant>/apt-packages.txt, not here; TeX packages in .devcontainer/tex-packages.txt.
+# install-tl, tlmgr and latexindent are Perl; latexindent's modules aren't bundled on Linux
+perl libyaml-tiny-perl libfile-homedir-perl
+# Signature checks: post-start.sh verifies the installer, install-tl and tlmgr the package database
+gnupg
+# XeTeX/fontspec find system fonts through fontconfig; Ghostscript for epstopdf and dvipdfmx
+fontconfig ghostscript
+# Pygments for minted (needs -shell-escape)
+python3-pygments

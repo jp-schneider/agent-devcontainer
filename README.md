@@ -2,7 +2,7 @@
 
 GitHub template for hardened devcontainers in which coding agents (currently Claude Code, also
 with local models via LM Studio) can run more safely. It has a shared hardened core plus variants
-(`base` without a toolchain, `python-uv-cpu` and `python-uv-gpu`), and works on WSL2, native Linux
+(`base` without a toolchain, `python-uv-cpu`, `python-uv-gpu` and `latex`), and works on WSL2, native Linux
 and macOS.
 
 - **Limited rights:** the agent runs without root, without capabilities and without access to
@@ -23,8 +23,9 @@ agents with more access than they intend, and because it will get better with mo
 - **Planted nested git repos** abort the container start, because host git would run their hooks.
 - **Secret files are masked:** `.env`, keys, credential files and more, via configurable regex
   patterns. Container variables go in a separate `container.env`.
-- **Variants:** `python-uv-gpu` (CUDA), `python-uv-cpu` and `base` (no toolchain), built from a
-  shared core plus overlays, with pluggable, combinable toolchains (uv; node with fnm, npm, pnpm).
+- **Variants:** `python-uv-gpu` (CUDA), `python-uv-cpu`, `latex` (TeX Live + LaTeX Workshop) and
+  `base` (no toolchain), built from a shared core plus overlays, with pluggable, combinable
+  toolchains (uv; node with fnm, npm, pnpm; latex).
 - **Project customization** without touching template files: extra packages, mounts, services.
   Template updates can be merged later.
 

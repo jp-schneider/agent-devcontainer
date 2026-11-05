@@ -101,11 +101,31 @@ apt_list() {
     not_grep 'volume create' "$WORK/docker.log"
 }
 
+@test "latex variant: the latex toolchain, overlay listed, shared TeX Live volume created" {
+    init latex latex
+    [ "$status" -eq 0 ]
+    grep -qx 'TOOLCHAINS="latex"' "$WS/.devcontainer/shared/.env"
+    case "$output" in *"WARNING toolchain latex"*) false ;; esac
+    [ "$(grep 'volume create' "$WORK/docker.log" | cut -d' ' -f4)" = "agent-sandbox-latex-texlive" ]
+    [ ! -s "$GEN/mountpoints.txt" ]
+}
+
 @test "template-dev variant: project + its dev packages, no toolchain" {
     init template-dev
     [ "$status" -eq 0 ]
-    [ "$(apt_list)" = "ffmpeg libsm6 libxext6 cmake=3.28.3-1build7 shellcheck python3-yaml " ]
+    [ "$(apt_list)" = "ffmpeg libsm6 libxext6 cmake=3.28.3-1build7 shellcheck python3-yaml gnupg " ]
     not_grep '^UV_' "$WS/.devcontainer/shared/.env"
+}
+
+@test "template-complete-dev variant: every toolchain, no missing overlay, dev packages" {
+    echo '{}' > "$WS/package.json"
+    init template-complete-dev uv node latex
+    [ "$status" -eq 0 ]
+    grep -qx 'TOOLCHAINS="uv node latex"' "$WS/.devcontainer/shared/.env"
+    case "$output" in *"WARNING toolchain"*) false ;; esac
+    [ "$(grep 'volume create' "$WORK/docker.log" | cut -d' ' -f4 | tr '\n' ' ')" \
+        = "claude-code-uv-python-versions agent-sandbox-node-fnm agent-sandbox-node-cache agent-sandbox-latex-texlive " ]
+    [ "$(apt_list)" = "ffmpeg libsm6 libxext6 cmake=3.28.3-1build7 shellcheck python3-yaml gnupg " ]
 }
 
 @test ".env: only DEVCONTAINER_* lines reach compose, unchanged; can't override generated keys" {

@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # Toolchain hooks: shared/post-start.sh (dispatch to each toolchain's post-start.sh) and the node
 # toolchain's init-host.sh (package dir discovery, generated overlay, mount points, host dirs).
+# The latex toolchain is in latex.bats.
 
 load helpers
 

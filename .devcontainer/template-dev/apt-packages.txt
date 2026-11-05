@@ -6,3 +6,5 @@
 # bats is not listed: tests/run.sh fetches the pinned version (a bats on PATH would win over it).
 shellcheck
 python3-yaml
+# gnupg: tests/latex.bats checks the TeX Live installer signature with real gpg (skipped without)
+gnupg

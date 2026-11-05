@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # The template's .gitignore, checked with git check-ignore in a scratch repo: venv dirs and the uv
 # toolchain's .venv-<worktree>.ct symlinks (post-start.sh) are ignored at any depth; .claude/private/
-# is ignored, the public .claude/ tier is not.
+# is ignored, the public .claude/ tier is not; LaTeX build artefacts are, sources and logs aren't.
 
 load helpers
 
@@ -59,5 +59,18 @@ ignored() {
             echo "unexpectedly ignored: $p" >&2
             return 1
         fi
+    done
+}
+
+@test "LaTeX build artefacts are ignored, at the root and nested" {
+    for p in main.aux main.bbl main.bcf main.blg main.fdb_latexmk main.fls main.run.xml main.synctex.gz \
+        main.toc sub/pkg/paper.aux; do
+        ignored "$p" || { echo "not ignored: $p" >&2; return 1; }
+    done
+}
+
+@test "negative control: LaTeX sources, the PDF and generic logs stay visible" {
+    for p in main.tex refs.bib main.pdf main.log slurm-123.out sub/pkg/paper.tex; do
+        if ignored "$p"; then echo "ignored: $p" >&2; return 1; fi
     done
 }
