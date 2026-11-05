@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-05
+
 ### Security
 - **VS Code relayed your git credentials into the container.** With VS Code's defaults, a push
   from the Source Control panel in the container succeeded: the Git extension's askpass answered
