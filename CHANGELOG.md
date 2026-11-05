@@ -9,6 +9,31 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+### Security
+- **VS Code relayed your git credentials into the container.** With VS Code's defaults, a push
+  from the Source Control panel in the container succeeded: the Git extension's askpass answered
+  with your GitHub login, and the Dev Containers credential helper (recreated on every window
+  reload) forwards to your host's credential manager. Every variant now sets
+  `github.gitAuthentication`, `git.terminalAuthentication` to `false` and
+  `dev.containers.gitCredentialHelperConfigLocation` to `"none"`. If
+  `git config --get-regexp credential` in the container still lists a helper, set the last one in
+  your host user settings (see `.devcontainer/CUSTOMIZING.md#how-do-i-commit-and-push`).
+- **The socket cleanup missed most sockets and stopped after 5 minutes.** It searched `/tmp` to
+  depth 2, but VS Code puts its sockets in `/tmp/user/<uid>/`. The new `shared/socket-cleanup.sh`
+  searches to depth 3, also removes the Git Graph askpass socket and the credential helper script,
+  and runs every 5 seconds for the container's lifetime (and once from `postStartCommand`).
+- **The docs claimed the agent can't push.** The agent runs as the same user as the VS Code
+  server, so deleting sockets and unsetting variables only stops accidental use; the VS Code
+  settings above are what keeps your credentials out. Documented as a known limitation, with the
+  remaining reach (`code` commands, credential prompts on your screen, the Wayland socket).
+
+### Changed
+- Variants' `postStartCommand` calls `bash /app/.devcontainer/shared/socket-cleanup.sh --once`
+  instead of an inline `find`. Custom variants: replace the `find …` part the same way.
+- Because the cleanup now reaches `/tmp/user/<uid>/` and keeps running, `code <file>` in the
+  container's terminal stops working a few seconds after attach (the IPC socket is deleted, which
+  the old loop meant to do but mostly missed), and so do credential prompts from Source Control and Git Graph.
+
 ## [0.1.4] - 2026-10-26
 
 ### Fixed

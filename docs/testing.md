@@ -37,7 +37,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
-| `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup, `shared/post-start.sh`, each toolchain's overlay listed |
+| `variants.bats` | invariants across variants: identical `remoteEnv` and security settings (credential relays off), `initializeCommand`, compose order, socket cleanup in `postStartCommand` and the compose `command`, `shared/post-start.sh`, each toolchain's overlay listed |
+| `socket-cleanup.bats` | `shared/socket-cleanup.sh` on a fake `/tmp`: relay sockets and the credential helper deleted at depth 1 and in `user/<uid>/`, look-alikes kept, the loop catches later sockets |
 | `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag) |
 | `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
 | `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not |
@@ -66,6 +67,11 @@ After changes to the Dockerfile, compose files or host scripts:
    - `ls /usr/lib/wsl` (WSL only).
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.
+   - Credential relays: `git config --show-origin --get-regexp credential` prints nothing;
+     after a window reload and 10 s, `find /tmp -maxdepth 3 -name '*.sock'` lists no
+     `vscode-ipc-`, `vscode-git-`, `git-graph-askpass-` or `vscode-remote-containers-` sockets
+     and no `vscode-remote-containers-*.js`; `ps -ef | grep socket-cleanup` shows the loop.
+     A push from the Source Control panel fails (or only prompts) instead of succeeding.
    - `docker` is not installed unless the proxy overlay is enabled (then `docker ps` works).
    - Project packages from `.devcontainer/apt-packages.txt` are installed (`dpkg -l <pkg>`).
    - Protection (each write must fail, with "Read-only file system" or "Device or resource busy"):

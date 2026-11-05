@@ -212,8 +212,16 @@ services:
 
 ### How do I commit and push?
 
-- **The agent can commit locally.** It can't push: no SSH keys, and the credential helpers are
-  disabled. Review and push from the host.
+- **The agent can commit locally.** Pushing needs your credentials, which the container doesn't
+  get: no SSH keys, and VS Code's credential relays are off (`github.gitAuthentication`,
+  `git.terminalAuthentication`, `dev.containers.gitCredentialHelperConfigLocation` in
+  `devcontainer.json`). Review and push from the host. Pushing from the Source Control panel in the
+  container fails too.
+- **Check it:** `git config --show-origin --get-regexp credential` in the container should print
+  nothing. If it lists VS Code's helper (`vscode-remote-containers-….js`), your VS Code ignores the
+  setting in `devcontainer.json`: set `"dev.containers.gitCredentialHelperConfigLocation": "none"`
+  in your user settings on the host. See also [Known limitations](README.md#known-limitations),
+  point 4.
 - **Commit identity:** set it in `container.env`:
   ```
   GIT_AUTHOR_NAME=...

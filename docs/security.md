@@ -13,8 +13,8 @@ running an agent risk-free. The sections below say what is covered and what is n
 |---|---|---|
 | Privilege escalation in the container | non-root user, no sudo, `cap_drop: ALL`, `no-new-privileges` | Dockerfile, `compose.core.yml` |
 | Container escape via the Docker API | no Docker socket; optional proxy blocks `run`/`exec`/`build`/`commit` | `compose.docker-proxy.yml` |
-| Running commands on the host through VS Code IPC | `VSCODE_IPC_HOOK_CLI`, `REMOTE_CONTAINERS_*` unset; IPC sockets deleted | `remoteEnv`, `security-harden.sh`, `command` loop, `postStartCommand` |
-| Using host Git credentials / pushing | `GIT_ASKPASS`/`VSCODE_GIT_*` unset; `dockerCredentialHelper` and `copyGitConfig` off; no SSH keys mounted, `SSH_AUTH_SOCK` emptied | `remoteEnv`, `security-harden.sh`, VS Code settings |
+| Running commands on the host through VS Code IPC | `VSCODE_IPC_HOOK_CLI`, `REMOTE_CONTAINERS_*` unset; IPC sockets deleted every 5 s (accidental use only, see below) | `remoteEnv`, `security-harden.sh`, `socket-cleanup.sh` (compose `command`, `postStartCommand`) |
+| Using host Git credentials / pushing | VS Code's credential relays off: `github.gitAuthentication`, `git.terminalAuthentication`, `dev.containers.gitCredentialHelperConfigLocation: none`; `dockerCredentialHelper` and `copyGitConfig` off; askpass sockets and the credential helper script deleted, `GIT_ASKPASS`/`VSCODE_GIT_*` unset; no SSH keys mounted, `SSH_AUTH_SOCK` emptied | VS Code settings, `socket-cleanup.sh`, `remoteEnv`, `security-harden.sh` |
 | GPG agent, browser, Wayland | `GPG_AGENT_INFO`, `BROWSER`, `WAYLAND_DISPLAY` cleared | same |
 
 **Why the hardening exists in three places:**
@@ -22,8 +22,37 @@ running an agent risk-free. The sections below say what is covered and what is n
   `~/.config/security-harden.sh`, sourced as the first line of `.bashrc` (before the
   interactive guard, so non-interactive shells such as Claude Code's get it too), is the real
   safeguard.
-- The socket cleanup runs in the compose `command` loop rather than `postAttachCommand`, because
-  VS Code's lifecycle cleanup kills background processes started from the latter.
+- The socket cleanup (`shared/socket-cleanup.sh`) runs for the container's lifetime in the compose
+  `command`, rather than from `postAttachCommand`, because VS Code's lifecycle cleanup kills
+  background processes started from the latter. It has to keep running: VS Code recreates the
+  sockets and the credential helper script on every attach (window reload), and `postStartCommand`
+  only runs at container start. It searches to depth 3 because VS Code puts most sockets in
+  `XDG_RUNTIME_DIR=/tmp/user/<uid>/`.
+
+**Same user as VS Code: the settings are the control, the rest is defence in depth.** The agent
+runs as the same user as the VS Code server, so it can:
+- connect to any socket VS Code opens (in `/tmp` and `/tmp/user/<uid>/`) in the seconds before the
+  cleanup deletes it, and set `GIT_ASKPASS`/`VSCODE_GIT_IPC_HANDLE` itself;
+- move or hard-link a socket out of the cleanup's reach (a Unix socket stays connectable after a
+  rename), so the cleanup never sees it;
+- kill the cleanup loop (same uid). A root-owned loop would be unkillable, but needs a root PID 1
+  with `CAP_DAC_OVERRIDE` (to enter the `0700` runtime dir) and still loses to the two points above,
+  so it isn't done.
+
+Unsetting variables and deleting sockets therefore only stop accidental use. What keeps host
+credentials out is that the relays are turned off in VS Code (the settings in the table); a
+credential request then gets at most an input box on the user's screen (VS Code's and Git Graph's
+askpass don't answer by themselves). Still reachable: the IPC socket (`code` commands on the host),
+those prompts, and the Wayland socket (`/tmp/vscode-wayland-*.sock`, writable by anyone, not
+removed). A real boundary would need a separate user for the agent.
+Background: with the defaults, a push from the Source Control panel in the container succeeded
+(GitHub login via the Git askpass socket), and the old cleanup missed `/tmp/user/<uid>/` and
+stopped after 5 minutes.
+
+**Where these details live.** This file is removed by the template cleanup; derived repos only get
+short, user-facing statements (`.devcontainer/README.md#known-limitations`). Keep bypasses and
+mechanisms here, so a derived workspace, which the agent reads, doesn't hand it a how-to. The code
+itself is still in the workspace: this reduces in-context hints, it isn't a secret.
 
 **Docker proxy trade-off.** Even read-only access with `CONTAINERS=1` lets the agent
 `docker inspect` every container on the host, including environment variables and therefore any

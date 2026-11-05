@@ -56,6 +56,20 @@ same() {
     done
 }
 
+@test "VS Code relays no host credentials to git, identically in every variant" {
+    local k
+    for k in github.gitAuthentication git.terminalAuthentication; do
+        same ".customizations.vscode.settings[\"$k\"]"
+        for v in $VARIANTS; do
+            [ "$(json "$v" ".customizations.vscode.settings[\"$k\"]")" = false ]
+        done
+    done
+    same '.customizations.vscode.settings["dev.containers.gitCredentialHelperConfigLocation"]'
+    for v in $VARIANTS; do
+        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.gitCredentialHelperConfigLocation"]')" = '"none"' ]
+    done
+}
+
 @test "initializeCommand runs shared/initialize.sh with the variant's own folder name" {
     for v in $VARIANTS; do
         [ "$(json "$v" '.initializeCommand[0:3]')" = "[\"bash\",\".devcontainer/shared/initialize.sh\",\"$v\"]" ]
@@ -71,10 +85,14 @@ same() {
     done
 }
 
-@test "postStartCommand keeps the socket cleanup" {
+@test "postStartCommand runs the socket cleanup once" {
     for v in $VARIANTS; do
-        json "$v" '.postStartCommand' | grep -q 'vscode-ssh-auth-'
+        json "$v" '.postStartCommand' | grep -qF 'bash /app/.devcontainer/shared/socket-cleanup.sh --once'
     done
+}
+
+@test "the compose command keeps running the socket cleanup in the background" {
+    grep -qE '^ *bash /app/\.devcontainer/shared/socket-cleanup\.sh &$' "$SHARED/compose.core.yml"
 }
 
 @test "postStartCommand runs the toolchain hooks via shared/post-start.sh" {
