@@ -46,13 +46,22 @@ same() {
     done
 }
 
-@test "VS Code security settings are identical and off" {
-    same '.customizations.vscode.settings["dev.containers.dockerCredentialHelper"]'
-    same '.customizations.vscode.settings["dev.containers.copyGitConfig"]'
+@test "VS Code settings: files.exclude identical, no host-only dev.containers.* settings" {
     same '.customizations.vscode.settings["files.exclude"]'
+    # copyGitConfig, gitCredentialHelperConfigLocation, dockerCredentialHelper only work as host user
+    # settings; in devcontainer.json they would only suggest a protection (post-attach.sh checks them)
     for v in $VARIANTS; do
-        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.dockerCredentialHelper"]')" = false ]
-        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.copyGitConfig"]')" = false ]
+        [ "$(json "$v" '[.customizations.vscode.settings | keys[] | select(startswith("dev.containers."))]')" = '[]' ]
+    done
+}
+
+@test "VS Code relays no host credentials to git, identically in every variant" {
+    local k
+    for k in github.gitAuthentication git.terminalAuthentication; do
+        same ".customizations.vscode.settings[\"$k\"]"
+        for v in $VARIANTS; do
+            [ "$(json "$v" ".customizations.vscode.settings[\"$k\"]")" = false ]
+        done
     done
 }
 
@@ -71,10 +80,21 @@ same() {
     done
 }
 
-@test "postStartCommand keeps the socket cleanup" {
+@test "postStartCommand runs the socket cleanup once" {
     for v in $VARIANTS; do
-        json "$v" '.postStartCommand' | grep -q 'vscode-ssh-auth-'
+        json "$v" '.postStartCommand' | grep -qF 'bash /app/.devcontainer/shared/socket-cleanup.sh --once'
     done
+}
+
+@test "postAttachCommand removes credential helpers from the copied git config" {
+    same '.postAttachCommand'
+    for v in $VARIANTS; do
+        [ "$(json "$v" '.postAttachCommand')" = '"bash /app/.devcontainer/shared/post-attach.sh"' ]
+    done
+}
+
+@test "the compose command keeps running the socket cleanup in the background" {
+    grep -qE '^ *bash /app/\.devcontainer/shared/socket-cleanup\.sh &$' "$SHARED/compose.core.yml"
 }
 
 @test "postStartCommand runs the toolchain hooks via shared/post-start.sh" {

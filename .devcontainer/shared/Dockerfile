@@ -117,7 +117,9 @@ RUN mkdir -p /home/vscode/.config \
 
 RUN sed -i '1i source ~/.config/security-harden.sh 2>/dev/null || true' ~/.bashrc \
     && sed -i '2i export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc \
-    && mkdir -p /home/vscode/.local/bin
+    && mkdir -p /home/vscode/.local/bin \
+    && echo '# Host-settings warning from shared/post-attach.sh, in interactive shells only' >> ~/.bashrc \
+    && echo 'case $- in *i*) if [ -s ~/.cache/devcontainer/host-settings-warning ]; then cat ~/.cache/devcontainer/host-settings-warning >&2; fi ;; esac' >> ~/.bashrc
 
 # Claude Code, installed at build time (updates require an image rebuild)
 RUN curl -fsSL https://claude.ai/install.sh | bash

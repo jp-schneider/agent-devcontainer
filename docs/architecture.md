@@ -27,11 +27,15 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
 2. **Host: compose.** The CLI merges the files in the variant's `dockerComposeFile` list, builds
    the image if needed, and starts the `claude-code` service (plus `docker-proxy` if that overlay
    is listed).
-3. **Container: `command`.** `sleep infinity`, plus a background loop that deletes VS Code IPC
-   sockets for the first 5 minutes (see [security.md](security.md)).
+3. **Container: `command`.** `sleep infinity`, plus `shared/socket-cleanup.sh` in the background,
+   which deletes VS Code's relay sockets every 5 seconds for the container's lifetime (see
+   [security.md](security.md)).
 4. **Container: `postStartCommand`.** `shared/post-start.sh` runs each toolchain's `post-start.sh` in
    order (uv: venv linking; node: Node versions, corepack, node_modules checks),
-   then deletes the SSH-agent and remote-containers sockets created before VS Code attaches.
+   then `socket-cleanup.sh --once` deletes the sockets created before VS Code attaches.
+5. **Container: `postAttachCommand`** (every attach). `shared/post-attach.sh` warns about missing
+   host settings (shown in every new terminal) and removes credential
+   sections from the git config VS Code may copy in (see [security.md](security.md)).
 
 ## Compose composition
 

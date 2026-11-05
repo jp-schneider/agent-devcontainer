@@ -49,11 +49,10 @@ services:
       # overlays pass the variables the container needs explicitly (e.g. toolchains/uv)
     networks:
       - dev
+    # Deletes VS Code's relay sockets for the container's lifetime (defence in depth, see the script)
     command: >
       bash -c '
-      (for i in $$(seq 1 10); do sleep 30;
-        find /tmp -maxdepth 2 \( -name "vscode-ipc-*.sock" -o -name "vscode-git-*.sock" \) -delete 2>/dev/null;
-      done) &
+      bash /app/.devcontainer/shared/socket-cleanup.sh &
       sleep infinity'
 
 networks:

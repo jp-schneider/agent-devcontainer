@@ -37,7 +37,9 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `initialize.bats` | full `initialize.sh` on a repo copy with a fake `docker`: generated files, apt lists, `DEVCONTAINER_*` from `.env`, toolchain vs. `base`, several toolchains (order, missing-overlay warning, unknown toolchain), compose order |
 | `resolve-config.bats` | compose file list per variant, failure handling |
 | `host-override.bats` | WSL detection (hooks `PROC_VERSION`, `WSL_LIB_DIR`) |
-| `variants.bats` | invariants across variants: identical `remoteEnv` and security settings, `initializeCommand`, compose order, socket cleanup, `shared/post-start.sh`, each toolchain's overlay listed |
+| `variants.bats` | invariants across variants: identical `remoteEnv` and security settings (credential relays off), `initializeCommand`, compose order, socket cleanup in `postStartCommand` and the compose `command`, `shared/post-attach.sh` in `postAttachCommand`, `shared/post-start.sh`, each toolchain's overlay listed |
+| `post-attach.bats` | `shared/post-attach.sh` in a fake `$HOME`: one warning per visible effect (VS Code helper, copied `~/.gitconfig`, Docker helper), none and no file when clean, file removed when the cause is gone; `credential` sections (plain, per-URL) removed from `~/.gitconfig` and the XDG config, other settings kept; the Dockerfile's `.bashrc` line prints the warning in interactive shells only, quietly and with status 0 otherwise |
+| `socket-cleanup.bats` | `shared/socket-cleanup.sh` on a fake `/tmp`: relay sockets and the credential helper deleted at depth 1 and in `user/<uid>/`, look-alikes kept, the loop catches later sockets |
 | `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag); relative links in the kept docs resolve after cleanup |
 | `docs.bats` | relative links and anchors in all tracked Markdown resolve (`md-links.py`, GitHub heading slugs); the checker itself on a broken file link and anchor |
 | `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
@@ -67,6 +69,15 @@ After changes to the Dockerfile, compose files or host scripts:
    - `ls /usr/lib/wsl` (WSL only).
    - `nvidia-smi` (GPU variants).
    - `env | grep -E 'VSCODE_IPC|GIT_ASKPASS|SSH_AUTH_SOCK'` should print nothing, or only empty values.
+   - Credential relays: `git config --show-origin --get-regexp credential` prints nothing;
+     after a window reload and 10 s, `find /tmp -maxdepth 3 -name '*.sock'` lists no
+     `vscode-ipc-`, `vscode-git-`, `git-graph-askpass-` or `vscode-remote-containers-` sockets
+     and no `vscode-remote-containers-*.js`; `ps -ef | grep socket-cleanup` shows the loop.
+     A push from the Source Control panel fails (or only prompts) instead of succeeding.
+   - Host settings warning: without the three `dev.containers.*` host user settings, a new
+     terminal shows the warning naming the missing ones; with them set and after a rebuild, no
+     warning and no `~/.gitconfig`. Either way `~/.gitconfig`, if present, has no `credential`
+     section after attach.
    - `docker` is not installed unless the proxy overlay is enabled (then `docker ps` works).
    - Project packages from `.devcontainer/apt-packages.txt` are installed (`dpkg -l <pkg>`).
    - Protection (each write must fail, with "Read-only file system" or "Device or resource busy"):
