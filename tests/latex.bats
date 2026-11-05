@@ -18,7 +18,9 @@ setup() {
     mkdir -p "$ROOT" "$WORK/ctan"
     # The toolchain, with the pinned fingerprint replaced by the fake key's
     cp -R "$SHARED/toolchains/latex" "$WORK/latex"
-    sed -i "s/^TEXLIVE_GPG_FINGERPRINT=.*/TEXLIVE_GPG_FINGERPRINT=$FAKE_PIN/" "$WORK/latex/post-start.sh"
+    # -i.bak: BSD sed (macOS) needs a suffix argument
+    sed -i.bak "s/^TEXLIVE_GPG_FINGERPRINT=.*/TEXLIVE_GPG_FINGERPRINT=$FAKE_PIN/" "$WORK/latex/post-start.sh" &&
+        rm "$WORK/latex/post-start.sh.bak"
     export TEXLIVE_ROOT="$ROOT" TEXLIVE_YEAR=2026 TEXLIVE_REPOSITORY=https://ctan.test/tlnet/
     export TEX_PACKAGES_PROJECT="$WORK/project-tex.txt"
     echo 'siunitx # units' > "$TEX_PACKAGES_PROJECT"
@@ -377,7 +379,8 @@ installed() {
     fpr() { gpg --with-colons --list-keys "$1" | awk -F: '/^fpr/ { print $10; exit }'; }
     pinned="$(fpr pinned@test)"
     other="$(fpr other@test)"
-    sed -i "s/^TEXLIVE_GPG_FINGERPRINT=.*/TEXLIVE_GPG_FINGERPRINT=$pinned/" "$WORK/latex/post-start.sh"
+    sed -i.bak "s/^TEXLIVE_GPG_FINGERPRINT=.*/TEXLIVE_GPG_FINGERPRINT=$pinned/" "$WORK/latex/post-start.sh" &&
+        rm "$WORK/latex/post-start.sh.bak"
     # sign_ctan <key uid>: bundle that key's public key, sign the checksum with it
     sign_ctan() {
         make_ctan
@@ -415,6 +418,8 @@ installed() {
 }
 
 @test "install.sh: volume mount point, and the PATH snippet adds the release's bin dir once" {
+    # Runs at image build only (Linux); `sed -i '3i …'` is GNU syntax, like node's install.sh
+    sed --version 2> /dev/null | grep -q GNU || skip "install.sh needs GNU sed (image build only)"
     export HOME="$WORK/home"
     mkdir -p "$HOME"
     printf '# 1\n# 2\n# 3\n# 4\n' > "$HOME/.bashrc"
@@ -437,9 +442,10 @@ installed() {
     for p in collection-latexextra latexmk biber chktex latexindent collection-luatex; do
         names "$SHARED/toolchains/latex/tex-packages.txt" | grep -qx "$p"
     done
-    ! names "$SHARED/toolchains/latex/tex-packages.txt" | grep -q '^scheme-'
+    # [ -z … ], not `! …`: bats doesn't fail a test on a negated command
+    [ -z "$(names "$SHARED/toolchains/latex/tex-packages.txt" | grep '^scheme-')" ]
     [ -z "$(names "$REPO_ROOT/.devcontainer/tex-packages.txt")" ]
     # apt: what upstream TeX Live needs from the system, no Debian TeX Live next to it
     names "$SHARED/toolchains/latex/apt-packages.txt" | grep -qx gnupg
-    ! names "$SHARED/toolchains/latex/apt-packages.txt" | grep -q '^texlive'
+    [ -z "$(names "$SHARED/toolchains/latex/apt-packages.txt" | grep '^texlive')" ]
 }
