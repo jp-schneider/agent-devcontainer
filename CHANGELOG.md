@@ -26,7 +26,7 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   settings. They are removed from the variants (they had no effect there). **Set all three in your
   VS Code user settings on the host** (`copyGitConfig: false`,
   `gitCredentialHelperConfigLocation: "none"`, `dockerCredentialHelper: false`) and rebuild (see
-  `.devcontainer/CUSTOMIZING.md#how-do-i-commit-and-push`). New `shared/post-attach.sh`
+  `.devcontainer/docs/customizing.md#how-do-i-commit-and-push`). New `shared/post-attach.sh`
   (`postAttachCommand` of every variant) warns in every new terminal while one of them is missing
   (rebuild needed: `.bashrc` changed in the Dockerfile) and removes credential sections from a
   copied git config; the rest of it stays readable by the agent.

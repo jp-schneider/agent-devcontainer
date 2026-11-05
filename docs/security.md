@@ -74,7 +74,7 @@ typed-in password isn't written to `~/.git-credentials` by `store`. Limits:
 - The agent can add a helper again (it owns the file); that only affects the container.
 
 **Where these details live.** This file is removed by the template cleanup; derived repos only get
-short, user-facing statements (`.devcontainer/README.md#known-limitations`). Keep bypasses and
+short, user-facing statements (`.devcontainer/docs/`, e.g. its Known limitations). Keep bypasses and
 mechanisms here, so a derived workspace, which the agent reads, doesn't hand it a how-to. The code
 itself is still in the workspace: this reduces in-context hints, it isn't a secret.
 

@@ -29,7 +29,7 @@ container.
 | read and change your project's code | become administrator (no root, no `sudo`) |
 | run commands, tests and builds | see secret files: `.env`, private keys, credential files look empty |
 | install project dependencies (`uv add`, `npm install`, …) | change files your machine runs later: `.devcontainer/`, git hooks and config, `.vscode/`, Claude settings |
-| use the internet | push with your credentials: no SSH keys, VS Code's credential relays are off (but see [point 4](#known-limitations)) |
+| use the internet | push with your credentials: no SSH keys, VS Code's credential relays are off (but see [Known limitations](docs/security.md#known-limitations), point 4) |
 | make local git commits | control Docker or other containers on your machine (by default) |
 
 Why these files: anything your machine runs or trusts outside the container (a git hook, the

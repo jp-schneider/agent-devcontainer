@@ -63,7 +63,8 @@ This setup reduces risk; it doesn't remove it. **What this means for you:**
 - Review the agent's changes before running anything from the repo on your machine (point 1).
 - Treat everything in the workspace and in `container.env` as something the agent could send
   anywhere (point 2).
-- Anything you add yourself (extra mounts, Docker access) is outside the protections (point 6).
+- Anything you add yourself (extra mounts, Docker access) is outside the protections (point 7).
+- An unexpected password or credential prompt from VS Code while an agent works: cancel it (point 4).
 
 Known gaps, roughly by importance:
 
@@ -76,28 +77,32 @@ Known gaps, roughly by importance:
 3. **Container isolation is the boundary.** The container shares the host kernel, and the
    devcontainer tooling and VS Code have their own attack surface. A kernel or runtime
    vulnerability is outside what this template can address.
-4. **Host details are visible.** `/proc/self/mountinfo` shows host paths, your user name and which
+4. **VS Code stays a channel to your machine.** The template turns off VS Code's credential
+   forwarding and limits its other connections to the host, but can't close them completely while
+   VS Code is attached. An agent may be able to trigger VS Code actions or show prompts on your
+   screen. Never enter credentials into a prompt you didn't expect.
+5. **Host details are visible.** `/proc/self/mountinfo` shows host paths, your user name and which
    files are masked. This setup protects integrity and secret *files*, not the shape of your
    machine. Don't encode secrets in paths.
-5. **Protection is a snapshot taken at start.**
+6. **Protection is a snapshot taken at start.**
    - Secret files created during a session aren't masked until the next start.
    - A git repo the agent plants during a session is only caught at the next start. Until then,
      host tools that enter it run its config: VS Code opened on the host (not attached), or a
      git-aware shell prompt. `.vscode/settings.json` turns off VS Code's automatic repository
      detection, but that doesn't cover prompts or other IDEs. Avoid host-side git in the
      workspace between an agent session and the next start.
-6. **Your additions are outside the protections.**
+7. **Your additions are outside the protections.**
    - **Extra mounts:** masking and the nested-repo check don't apply to them.
    - **Dev Container Features:** they run as root at build time and can enable `privileged`
      mode, capabilities or mounts.
    - **The Docker proxy overlay:** it exposes all host containers via `docker inspect`.
 
    See [customizing.md](customizing.md).
-7. **Claude deny rules are a second line of defence.** They govern Claude's file tools; a shell
+8. **Claude deny rules are a second line of defence.** They govern Claude's file tools; a shell
    command like `cat .env` on the host is not reliably covered.
-8. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
+9. **Supply chain.** Base images and the uv/Claude installers are fetched by tag or `curl | sh` at
    build time; only the Docker proxy image is pinned by digest.
-9. **Projects are told apart by folder name only.** The compose project, container, Docker
+10. **Projects are told apart by folder name only.** The compose project, container, Docker
    network (`<folder>-dev`) and the volumes (Claude config, uv venvs, node_modules) are named after
    the workspace folder's name, not its path. Two checkouts with the same folder name (`~/a/app` and
    `~/b/app`, or two submodules both called `app`) share all of them: starting one replaces the
@@ -106,11 +111,9 @@ Known gaps, roughly by importance:
    other. Give every workspace a distinct folder name. Unique names are planned for 0.2.
    Independently, every container can reach ports published on the host, including those of other
    projects' containers.
-10. **Details:**
+11. **Details:**
     - Single-file read-only mounts keep showing the old version if the host replaces the file
       (git and Claude write by rename) until the container restarts.
-    - The VS Code IPC socket cleanup loop runs for the first 5 minutes; later sockets rely on the
-      cleared environment variables.
     - `DEVCONTAINER_EDITABLE_BY_AGENT=1` removes the protection of `.devcontainer/` (template
       development only).
 

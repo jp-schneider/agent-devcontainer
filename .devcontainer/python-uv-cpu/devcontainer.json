@@ -43,7 +43,7 @@
       "settings": {
         // No host credentials for git: GitHub login (Source Control, Git Graph), askpass in the
         // terminal. The dev.containers.* settings (copyGitConfig, gitCredentialHelperConfigLocation,
-        // dockerCredentialHelper) only work as host user settings, not here: see CUSTOMIZING.md,
+        // dockerCredentialHelper) only work as host user settings, not here: see docs/customizing.md,
         // "How do I commit and push?"; shared/post-attach.sh warns while they are missing.
         "github.gitAuthentication": false,
         "git.terminalAuthentication": false,

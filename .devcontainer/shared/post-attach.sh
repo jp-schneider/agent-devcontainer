@@ -39,7 +39,7 @@ if [ -n "$missing" ]; then
         echo "WARNING: VS Code passes host credentials or config into this container."
         echo "Set in your VS Code user settings on the host, then rebuild the container:"
         printf '%s' "$missing"
-        echo "See .devcontainer/CUSTOMIZING.md, \"How do I commit and push?\""
+        echo "See .devcontainer/docs/customizing.md, \"How do I commit and push?\""
     } > "$warn_file"
     cat "$warn_file" >&2
 else

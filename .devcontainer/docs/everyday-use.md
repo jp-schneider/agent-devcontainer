@@ -16,7 +16,8 @@
 - **Review before you run on your machine.** After an agent session, check `git diff` before you run
   anything from the repo outside the container (`make`, `pytest`, `uv run`, `npm`, …). The agent may
   have changed it. Running it inside the container is always fine.
-- **Push from the host.** The agent can commit but not push. See
+- **Push from the host.** The agent can commit; the container doesn't get your credentials, so
+  pushing (also from VS Code's Source Control panel in the container) fails. See
   [How do I commit and push?](customizing.md#how-do-i-commit-and-push)
 - **Adding things** (VS Code extensions, system packages, datasets, databases, GPU, permissions
   for Claude): see [customizing.md](customizing.md).
