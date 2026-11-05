@@ -24,6 +24,11 @@ setup() {
     echo 'siunitx # units' > "$TEX_PACKAGES_PROJECT"
     fake_curl
     fake_gpg
+    # post-start.sh writes to ~/.config (fontconfig link): never the real home
+    export HOME="$WORK/home"
+    mkdir -p "$HOME"
+    printf '#!/bin/sh\necho "$*" >> "%s/fc-cache.log"\n' "$WORK" > "$WORK/bin/fc-cache"
+    chmod +x "$WORK/bin/fc-cache"
 }
 
 teardown() {
@@ -92,6 +97,8 @@ texdir="\$(sed -n 's/^TEXDIR //p' "\$profile")"
 bin="\$texdir/bin/x86_64-linux"
 mkdir -p "\$bin"
 printf '%s\n' scheme-basic collection-basic collection-latex > "\$texdir/installed.txt"
+mkdir -p "\$texdir/texmf-var/fonts/conf"
+echo '<fontconfig/>' > "\$texdir/texmf-var/fonts/conf/texlive-fontconfig.conf"
 cat > "\$bin/tlmgr" << 'TL'
 #!/usr/bin/env bash
 db="\$(dirname "\$0")/../../installed.txt"
@@ -306,6 +313,23 @@ installed() {
     LC_ALL=en_US.UTF-8 start
     [ "$status" -eq 0 ]
     [ "$(grep install "$WORK/tlmgr.log")" = "[https://mirror1.test/tlnet] install cm-super" ]
+}
+
+@test "fontconfig: TeX Live's fonts linked in for XeTeX; cache refreshed only when the link is new or packages came in" {
+    needs_linux
+    make_ctan
+    start
+    [ "$status" -eq 0 ]
+    [ "$(readlink "$HOME/.config/fontconfig/conf.d/09-texlive.conf")" = "$ROOT/2026/texmf-var/fonts/conf/texlive-fontconfig.conf" ]
+    grep -qx -- '-f' "$WORK/fc-cache.log"
+    rm -f "$WORK/fc-cache.log"
+    start
+    [ ! -e "$WORK/fc-cache.log" ]
+    # A rebuild loses ~/.config
+    rm -rf "$HOME/.config"
+    start
+    [ -L "$HOME/.config/fontconfig/conf.d/09-texlive.conf" ]
+    grep -qx -- '-f' "$WORK/fc-cache.log"
 }
 
 @test "list entries that aren't package names never reach tlmgr" {

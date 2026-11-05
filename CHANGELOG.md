@@ -14,7 +14,7 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   scheme-full) with latexmk, biber, chktex and latexindent; the variant adds LaTeX Workshop (build
   on save, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
   (`initialize.sh <variant> … latex`). TeX Live is installed on the first start into a Docker
-  volume shared across projects (`agent-sandbox-latex-texlive`, ~1.5 GB, several minutes); the
+  volume shared across projects (`agent-sandbox-latex-texlive`, ~3.5 GB, up to two hours depending on the mirror); the
   installer is verified against TeX Live's signing key (pinned fingerprint). `tlmgr` works
   without root. Project packages go in the new `.devcontainer/tex-packages.txt` (yours, like
   `apt-packages.txt`; seeded by `--adopt`, create it in existing repos); see

@@ -220,8 +220,9 @@ variant's `devcontainer.json`, add its compose file before `compose.project.yml`
 ```
 
 Then rebuild. **The first start on a machine installs TeX Live** (upstream, the current release,
-~1.5 GB, several minutes) into a Docker volume shared by all your projects; later starts take
-seconds. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab (SyncTeX:
+~3.5 GB; from half an hour to two hours, depending on the mirror) into a Docker volume shared by
+all your projects. LaTeX works once that's done; progress is in
+`~/.local/texlive/install-<year>.log`, then in the start log. Later starts take seconds. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab (SyncTeX:
 Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
 TeXstudio and other desktop editors don't run in the container by design.
 

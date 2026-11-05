@@ -205,6 +205,10 @@ The `latex` variant ships with it; other variants can add it (see [customizing.m
   latexmk, biber, chktex, latexindent) plus the project's `.devcontainer/tex-packages.txt`. Every
   start installs what is missing (no network access if nothing is). Names that aren't package
   names are skipped. LuaLaTeX's font database is built into the volume after installs.
+- **Fonts for XeLaTeX:** XeTeX finds fonts by name through fontconfig, which doesn't know TeX
+  Live's. Every start links TeX Live's fontconfig file to
+  `~/.config/fontconfig/conf.d/09-texlive.conf` and runs `fc-cache` when the link is new (first
+  start, after a rebuild) or packages were installed (~20 s).
 - **apt:** only what upstream TeX Live needs from the system: Perl and latexindent's Perl modules,
   `gnupg`, `fontconfig`, Ghostscript, Pygments (minted).
 - **Failures don't stop the start.** Offline, a signature or checksum mismatch, or a newer release

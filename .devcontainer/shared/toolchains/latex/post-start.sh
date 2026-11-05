@@ -2,7 +2,7 @@
 # latex toolchain, container start (run by shared/post-start.sh). Idempotent; problems are reported
 # (WARNING, non-zero exit), they don't stop the start.
 # - TeX Live $TEXLIVE_YEAR (compose.yml) in the shared volume at $TEXLIVE_ROOT: installed on the
-#   first start on this machine (~1.5 GB download, several minutes), with install-tl from
+#   first start on this machine (~3.5 GB, up to two hours depending on the mirror), with install-tl from
 #   $TEXLIVE_REPOSITORY (default: CTAN's mirror redirector). The installer is only run after its
 #   checksum file verified against TeX Live's signing key (fingerprint pinned below); install-tl and
 #   tlmgr then verify the package database themselves (gnupg is installed).
@@ -119,7 +119,7 @@ tlpdbopt_install_docfiles 0
 tlpdbopt_install_srcfiles 0
 tlpdbopt_autobackup 0
 EOF
-    note "installing TeX Live $year from $mirror into the shared volume (first start on this machine; ~1.5 GB, several minutes); log: $root/install-$year.log"
+    note "installing TeX Live $year from $mirror into the shared volume (first start on this machine; ~3.5 GB, up to two hours depending on the mirror); log: $root/install-$year.log"
     "$dir/install-tl" -profile "$tmp/texlive.profile" -repository "$mirror" > "$root/install-$year.log" 2>&1
     status=$?
     if [ "$status" -ne 0 ]; then
@@ -223,6 +223,20 @@ if [ "$fresh" -eq 1 ] || [ -n "$missing" ]; then
     if command -v luaotfload-tool > /dev/null; then
         luaotfload-tool --update > /dev/null 2>&1 \
             || warn "luaotfload-tool --update failed; the first lualatex run builds the font database"
+    fi
+fi
+
+# XeTeX finds fonts by name through fontconfig, which doesn't know TeX Live's fonts: link TeX Live's
+# fontconfig file into the user's config, and refresh the cache when the link is new (first start;
+# a rebuild loses ~/.config and ~/.cache) or packages came in
+fc_conf="$texdir/texmf-var/fonts/conf/texlive-fontconfig.conf"
+fc_link="$HOME/.config/fontconfig/conf.d/09-texlive.conf"
+if [ -f "$fc_conf" ] && command -v fc-cache > /dev/null; then
+    if [ "$(readlink "$fc_link" 2> /dev/null)" != "$fc_conf" ] || [ "$fresh" -eq 1 ] || [ -n "$missing" ]; then
+        mkdir -p "$(dirname "$fc_link")"
+        ln -sfn "$fc_conf" "$fc_link"
+        fc-cache -f > /dev/null 2>&1 \
+            || warn "fc-cache failed; XeLaTeX may not find TeX Live's fonts by name"
     fi
 fi
 exit "$status"

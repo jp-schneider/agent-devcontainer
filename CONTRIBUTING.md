@@ -24,7 +24,8 @@ For larger changes, please open an issue first so we can agree on the approach.
    **`template-dev`** variant. It has what the tests and CI need (shellcheck, Python 3 + PyYAML;
    `tests/run.sh` fetches the pinned bats) and the bats and shellcheck VS Code extensions.
    For work on the toolchains, **`template-complete-dev`** is the same plus every toolchain
-   (uv, node, latex) and their extensions; its first start installs TeX Live (several minutes).
+   (uv, node, latex) and their extensions; its first start installs TeX Live (~3.5 GB; up to two hours,
+   depending on the mirror).
 2. To let a coding agent edit the template itself (`.devcontainer/` is read-only in the container
    by design), set this in `.env` on the host:
    ```
