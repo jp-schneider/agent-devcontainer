@@ -215,14 +215,20 @@ variant's `devcontainer.json`, add its compose file before `compose.project.yml`
 ],
 "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "<variant>", "uv", "latex"],
 // in customizations.vscode:
-"settings": { "latex-workshop.latex.autoBuild.run": "onSave", "latex-workshop.formatting.latex": "latexindent" },
+"settings": {
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.outDir": "%DIR%/output",
+  "latex-workshop.formatting.latex": "latexindent"
+},
 "extensions": [ "james-yu.latex-workshop" ]
 ```
 
 Then rebuild. **The first start on a machine installs TeX Live** (upstream, the current release,
 ~3.5 GB; from half an hour to two hours, depending on the mirror) into a Docker volume shared by
 all your projects. LaTeX works once that's done; progress is in
-`~/.local/texlive/install-<year>.log`, then in the start log. Later starts take seconds. Saving a `.tex` file builds it with latexmk; the PDF opens in a VS Code tab (SyncTeX:
+`~/.local/texlive/install-<year>.log`, then in the start log. Later starts take seconds. Saving a `.tex` file builds it with latexmk into `output/` next to it
+(the PDF and all build files; change `latex-workshop.latex.outDir` to move them). The PDF opens
+in a VS Code tab (SyncTeX:
 Ctrl+Alt+J jumps to the PDF, Ctrl+click in the PDF jumps back). No display is forwarded:
 TeXstudio and other desktop editors don't run in the container by design.
 
@@ -244,7 +250,9 @@ the template before the latex toolchain don't have the file yet; create it.
 **`-shell-escape`** (minted, some TikZ externalisation setups) lets a document run arbitrary
 commands. The default recipe doesn't pass it; enable it in your own LaTeX Workshop recipe or
 `latexmkrc` only for documents you trust. `.gitignore` ignores the usual build files (`*.aux`,
-`*.fdb_latexmk`, `*.synctex.gz`, …) but not `*.log`; `latexmk -c` removes them.
+`*.fdb_latexmk`, `*.synctex.gz`, …) but not `*.log` or the PDF; `latexmk -c -outdir=output`
+removes them. Building in a terminal: pass `-outdir=output` too, or the files land next to the
+`.tex` file.
 
 ### How do I use the GPU or give the container more resources?
 

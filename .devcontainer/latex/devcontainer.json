@@ -66,8 +66,10 @@
           }
         },
         // LaTeX Workshop: builds with latexmk on save (its default recipe, no -shell-escape) and
-        // shows the PDF in a VS Code tab (SyncTeX: Ctrl+Alt+J / Ctrl+click), no display needed
+        // shows the PDF in a VS Code tab (SyncTeX: Ctrl+Alt+J / Ctrl+click), no display needed.
+        // PDF and build files go to output/ next to the .tex file
         "latex-workshop.latex.autoBuild.run": "onSave",
+        "latex-workshop.latex.outDir": "%DIR%/output",
         "latex-workshop.formatting.latex": "latexindent"
       },
       "extensions": [

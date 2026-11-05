@@ -12,7 +12,7 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 ### Added
 - **LaTeX: `latex` variant and `latex` toolchain.** Upstream TeX Live 2026 (a curated set, not
   scheme-full) with latexmk, biber, chktex and latexindent; the variant adds LaTeX Workshop (build
-  on save, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
+  on save into `output/` next to the `.tex` file, PDF in a VS Code tab, SyncTeX). The toolchain can be added to any variant
   (`initialize.sh <variant> … latex`). TeX Live is installed on the first start into a Docker
   volume shared across projects (`agent-sandbox-latex-texlive`, ~3.5 GB, up to two hours depending on the mirror); the
   installer is verified against TeX Live's signing key (pinned fingerprint). `tlmgr` works
