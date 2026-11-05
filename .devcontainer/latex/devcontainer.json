@@ -33,15 +33,21 @@
   "initializeCommand": ["bash", ".devcontainer/shared/initialize.sh", "latex", "latex"],
   // postStartCommand: toolchain hooks via shared/post-start.sh (none for latex), then clean up sockets
   // created before VS Code attaches
-  "postStartCommand": "bash /app/.devcontainer/shared/post-start.sh; find /tmp -maxdepth 2 \\( -name 'vscode-ssh-auth-*.sock' -o -name 'vscode-remote-containers-ipc-*.sock' -o -name 'vscode-remote-containers-*.js' \\) -delete 2>/dev/null || true",
-  // IPC socket cleanup (vscode-ipc-*.sock, vscode-git-*.sock) is handled by a background
-  // loop in the Docker Compose command – postAttachCommand is unreliable for background
-  // processes due to VS Code's cgroup-based lifecycle cleanup.
+  "postStartCommand": "bash /app/.devcontainer/shared/post-start.sh; bash /app/.devcontainer/shared/socket-cleanup.sh --once",
+  // The same cleanup keeps running in the Docker Compose command (VS Code recreates the sockets on
+  // every attach) – postAttachCommand is unreliable for background processes due to VS Code's
+  // cgroup-based lifecycle cleanup.
+  // postAttachCommand: remove credential helpers from the git config VS Code may copy in at attach
+  "postAttachCommand": "bash /app/.devcontainer/shared/post-attach.sh",
   "customizations": {
     "vscode": {
       "settings": {
-        "dev.containers.dockerCredentialHelper": false,
-        "dev.containers.copyGitConfig": false,
+        // No host credentials for git: GitHub login (Source Control, Git Graph), askpass in the
+        // terminal. The dev.containers.* settings (copyGitConfig, gitCredentialHelperConfigLocation,
+        // dockerCredentialHelper) only work as host user settings, not here: see docs/customizing.md,
+        // "How do I commit and push?"; shared/post-attach.sh warns while they are missing.
+        "github.gitAuthentication": false,
+        "git.terminalAuthentication": false,
         // Container only (not .vscode/settings.json, which the host shares): hide files that are
         // masked here (empty, read-only; see shared/mask-patterns.txt). Cosmetic; globs approximate
         // the regexes and cannot exclude container.env from *.env, so *.env is not listed.
