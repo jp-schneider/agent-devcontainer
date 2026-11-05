@@ -14,14 +14,22 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   from the Source Control panel in the container succeeded: the Git extension's askpass answered
   with your GitHub login, and the Dev Containers credential helper (recreated on every window
   reload) forwards to your host's credential manager. Every variant now sets
-  `github.gitAuthentication`, `git.terminalAuthentication` to `false` and
-  `dev.containers.gitCredentialHelperConfigLocation` to `"none"`. If
-  `git config --get-regexp credential` in the container still lists a helper, set the last one in
-  your host user settings (see `.devcontainer/CUSTOMIZING.md#how-do-i-commit-and-push`).
+  `github.gitAuthentication` and `git.terminalAuthentication` to `false`; the credential helper
+  needs a host setting (next entries).
 - **The socket cleanup missed most sockets and stopped after 5 minutes.** It searched `/tmp` to
   depth 2, but VS Code puts its sockets in `/tmp/user/<uid>/`. The new `shared/socket-cleanup.sh`
   searches to depth 3, also removes the Git Graph askpass socket and the credential helper script,
   and runs every 5 seconds for the container's lifetime (and once from `postStartCommand`).
+- **Your host's `~/.gitconfig` and credential helpers can still reach the container.** VS Code
+  copied it although `dev.containers.copyGitConfig` was `false` in `devcontainer.json`: VS Code
+  reads it, `gitCredentialHelperConfigLocation` and `dockerCredentialHelper` only from your user
+  settings. They are removed from the variants (they had no effect there). **Set all three in your
+  VS Code user settings on the host** (`copyGitConfig: false`,
+  `gitCredentialHelperConfigLocation: "none"`, `dockerCredentialHelper: false`) and rebuild (see
+  `.devcontainer/CUSTOMIZING.md#how-do-i-commit-and-push`). New `shared/post-attach.sh`
+  (`postAttachCommand` of every variant) warns in every new terminal while one of them is missing
+  (rebuild needed: `.bashrc` changed in the Dockerfile) and removes credential sections from a
+  copied git config; the rest of it stays readable by the agent.
 - **The docs claimed the agent can't push.** The agent runs as the same user as the VS Code
   server, so deleting sockets and unsetting variables only stops accidental use; the VS Code
   settings above are what keeps your credentials out. Documented as a known limitation, with the
@@ -29,7 +37,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ### Changed
 - Variants' `postStartCommand` calls `bash /app/.devcontainer/shared/socket-cleanup.sh --once`
-  instead of an inline `find`. Custom variants: replace the `find …` part the same way.
+  instead of an inline `find`. Custom variants: replace the `find …` part the same way, and add
+  `"postAttachCommand": "bash /app/.devcontainer/shared/post-attach.sh"`.
 - Because the cleanup now reaches `/tmp/user/<uid>/` and keeps running, `code <file>` in the
   container's terminal stops working a few seconds after attach (the IPC socket is deleted, which
   the old loop meant to do but mostly missed), and so do credential prompts from Source Control and Git Graph.

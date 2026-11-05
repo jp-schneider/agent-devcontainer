@@ -16,6 +16,7 @@
    - `postStartCommand`: starts with `bash /app/.devcontainer/shared/post-start.sh;` (runs the
      toolchains' `post-start.sh`). Keep the socket cleanup
      (`bash /app/.devcontainer/shared/socket-cleanup.sh --once`).
+   - `postAttachCommand`: `bash /app/.devcontainer/shared/post-attach.sh`, unchanged.
    - `customizations.vscode.extensions`: stack-specific extensions.
 3. **Keep `remoteEnv` and the VS Code security settings identical to the other variants.**
    devcontainer.json has no include mechanism, so these are duplicated

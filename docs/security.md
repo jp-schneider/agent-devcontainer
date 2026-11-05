@@ -14,7 +14,7 @@ running an agent risk-free. The sections below say what is covered and what is n
 | Privilege escalation in the container | non-root user, no sudo, `cap_drop: ALL`, `no-new-privileges` | Dockerfile, `compose.core.yml` |
 | Container escape via the Docker API | no Docker socket; optional proxy blocks `run`/`exec`/`build`/`commit` | `compose.docker-proxy.yml` |
 | Running commands on the host through VS Code IPC | `VSCODE_IPC_HOOK_CLI`, `REMOTE_CONTAINERS_*` unset; IPC sockets deleted every 5 s (accidental use only, see below) | `remoteEnv`, `security-harden.sh`, `socket-cleanup.sh` (compose `command`, `postStartCommand`) |
-| Using host Git credentials / pushing | VS Code's credential relays off: `github.gitAuthentication`, `git.terminalAuthentication`, `dev.containers.gitCredentialHelperConfigLocation: none`; `dockerCredentialHelper` and `copyGitConfig` off; askpass sockets and the credential helper script deleted, `GIT_ASKPASS`/`VSCODE_GIT_*` unset; no SSH keys mounted, `SSH_AUTH_SOCK` emptied | VS Code settings, `socket-cleanup.sh`, `remoteEnv`, `security-harden.sh` |
+| Using host Git credentials / pushing | VS Code's credential relays off: `github.gitAuthentication`, `git.terminalAuthentication` (devcontainer.json); `dev.containers.gitCredentialHelperConfigLocation: none`, `dockerCredentialHelper` and `copyGitConfig` off (host user settings only; warning while missing); askpass sockets and the credential helper script deleted, `GIT_ASKPASS`/`VSCODE_GIT_*` unset; no SSH keys mounted, `SSH_AUTH_SOCK` emptied; credential sections removed from a copied `~/.gitconfig` on attach | VS Code settings, host user settings, `socket-cleanup.sh`, `post-attach.sh`, `remoteEnv`, `security-harden.sh` |
 | GPG agent, browser, Wayland | `GPG_AGENT_INFO`, `BROWSER`, `WAYLAND_DISPLAY` cleared | same |
 
 **Why the hardening exists in three places:**
@@ -48,6 +48,30 @@ removed). A real boundary would need a separate user for the agent.
 Background: with the defaults, a push from the Source Control panel in the container succeeded
 (GitHub login via the Git askpass socket), and the old cleanup missed `/tmp/user/<uid>/` and
 stopped after 5 minutes.
+
+**The host's `~/.gitconfig` is copied despite `copyGitConfig: false`.** Observed after the fix above:
+`~/.gitconfig` in the container was written 2 s after start with the host's user, `init`, `pull`
+and `credential.helper = store` (before, VS Code's own helper line had covered the copied one).
+Confirmed on the host: the Dev Containers extension reads `copyGitConfig`,
+`dockerCredentialHelper` and `gitCredentialHelperConfigLocation` only from the host's user settings,
+not from `devcontainer.json`, so they are not in the variants (`variants.bats` keeps them out). The
+user docs ask for all three as host user settings, and the template checks their effects:
+`shared/post-attach.sh` warns, on stderr and in `~/.cache/devcontainer/host-settings-warning`
+(printed by every new interactive shell via `.bashrc`, recomputed on every attach), for each one
+whose effect it sees: VS Code's helper (`vscode-remote-containers`) in `/etc/gitconfig` or
+`~/.gitconfig`; any `~/.gitconfig` (the image has none, the template never writes one, so it was
+copied, or the user created it); `credsStore`/`credHelpers` in `~/.docker/config.json`. Checking
+the host's settings file from `initialize.sh` was rejected: its location varies (Windows
+`%APPDATA%` behind WSL, macOS, Insiders, profiles, Settings Sync), and `initializeCommand` output
+is hardly seen. The agent can delete the warning file; it is a hint for the user, not a control.
+Then `shared/post-attach.sh` (`postAttachCommand`) removes every `credential` section (plain and
+per-URL) from `~/.gitconfig` and `~/.config/git/config`, so the container uses no helper and a
+typed-in password isn't written to `~/.git-credentials` by `store`. Limits:
+- It can't undo the copy: anything else in the host file (`url.*.insteadOf` with a token, `include`
+  paths, aliases) is readable by the agent from the moment VS Code writes it.
+- It assumes VS Code copies the file before `postAttachCommand` runs (host check); a copy after
+  that keeps its credential entries until the next attach.
+- The agent can add a helper again (it owns the file); that only affects the container.
 
 **Where these details live.** This file is removed by the template cleanup; derived repos only get
 short, user-facing statements (`.devcontainer/README.md#known-limitations`). Keep bypasses and

@@ -33,6 +33,9 @@ What happens when VS Code ("Reopen in Container") or the devcontainer CLI opens 
 4. **Container: `postStartCommand`.** `shared/post-start.sh` runs each toolchain's `post-start.sh` in
    order (uv: venv linking; node: Node versions, corepack, node_modules checks),
    then `socket-cleanup.sh --once` deletes the sockets created before VS Code attaches.
+5. **Container: `postAttachCommand`** (every attach). `shared/post-attach.sh` warns about missing
+   host settings (shown in every new terminal) and removes credential
+   sections from the git config VS Code may copy in (see [security.md](security.md)).
 
 ## Compose composition
 

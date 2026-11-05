@@ -36,16 +36,17 @@
   // The same cleanup keeps running in the Docker Compose command (VS Code recreates the sockets on
   // every attach) – postAttachCommand is unreliable for background processes due to VS Code's
   // cgroup-based lifecycle cleanup.
+  // postAttachCommand: remove credential helpers from the git config VS Code may copy in at attach
+  "postAttachCommand": "bash /app/.devcontainer/shared/post-attach.sh",
   "customizations": {
     "vscode": {
       "settings": {
-        "dev.containers.dockerCredentialHelper": false,
-        "dev.containers.copyGitConfig": false,
         // No host credentials for git: GitHub login (Source Control, Git Graph), askpass in the
-        // terminal, Dev Containers credential helper (forwards to the host's credential manager)
+        // terminal. The dev.containers.* settings (copyGitConfig, gitCredentialHelperConfigLocation,
+        // dockerCredentialHelper) only work as host user settings, not here: see CUSTOMIZING.md,
+        // "How do I commit and push?"; shared/post-attach.sh warns while they are missing.
         "github.gitAuthentication": false,
         "git.terminalAuthentication": false,
-        "dev.containers.gitCredentialHelperConfigLocation": "none",
         // Container only (not .vscode/settings.json, which the host shares): hide files that are
         // masked here (empty, read-only; see shared/mask-patterns.txt). Cosmetic; globs approximate
         // the regexes and cannot exclude container.env from *.env, so *.env is not listed.

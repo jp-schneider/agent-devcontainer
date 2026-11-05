@@ -46,13 +46,12 @@ same() {
     done
 }
 
-@test "VS Code security settings are identical and off" {
-    same '.customizations.vscode.settings["dev.containers.dockerCredentialHelper"]'
-    same '.customizations.vscode.settings["dev.containers.copyGitConfig"]'
+@test "VS Code settings: files.exclude identical, no host-only dev.containers.* settings" {
     same '.customizations.vscode.settings["files.exclude"]'
+    # copyGitConfig, gitCredentialHelperConfigLocation, dockerCredentialHelper only work as host user
+    # settings; in devcontainer.json they would only suggest a protection (post-attach.sh checks them)
     for v in $VARIANTS; do
-        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.dockerCredentialHelper"]')" = false ]
-        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.copyGitConfig"]')" = false ]
+        [ "$(json "$v" '[.customizations.vscode.settings | keys[] | select(startswith("dev.containers."))]')" = '[]' ]
     done
 }
 
@@ -63,10 +62,6 @@ same() {
         for v in $VARIANTS; do
             [ "$(json "$v" ".customizations.vscode.settings[\"$k\"]")" = false ]
         done
-    done
-    same '.customizations.vscode.settings["dev.containers.gitCredentialHelperConfigLocation"]'
-    for v in $VARIANTS; do
-        [ "$(json "$v" '.customizations.vscode.settings["dev.containers.gitCredentialHelperConfigLocation"]')" = '"none"' ]
     done
 }
 
@@ -88,6 +83,13 @@ same() {
 @test "postStartCommand runs the socket cleanup once" {
     for v in $VARIANTS; do
         json "$v" '.postStartCommand' | grep -qF 'bash /app/.devcontainer/shared/socket-cleanup.sh --once'
+    done
+}
+
+@test "postAttachCommand removes credential helpers from the copied git config" {
+    same '.postAttachCommand'
+    for v in $VARIANTS; do
+        [ "$(json "$v" '.postAttachCommand')" = '"bash /app/.devcontainer/shared/post-attach.sh"' ]
     done
 }
 
