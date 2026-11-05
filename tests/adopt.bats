@@ -128,7 +128,7 @@ teardown_file() {
     S="$WORK/after-adopt"
     cmp -s "$S/README.md" "$WORK/before/README.md"
     cmp -s "$S/.claude/notes.md" "$WORK/before/.claude/notes.md"
-    for p in LICENSE docs tests .vscode/tasks.json .devcontainer/template-dev SECURITY.md CHANGELOG.md .github/template-cleanup .github/release .github/workflows .claude/plans; do
+    for p in LICENSE docs tests .vscode/tasks.json .devcontainer/template-dev .devcontainer/template-complete-dev SECURITY.md CHANGELOG.md .github/template-cleanup .github/release .github/workflows .claude/plans; do
         [ ! -e "$S/$p" ] || { echo "added: $p" >&2; return 1; }
     done
 }

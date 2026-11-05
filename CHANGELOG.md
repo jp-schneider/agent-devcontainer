@@ -21,6 +21,10 @@ Repos created from the template can update with `.devcontainer/update-from-templ
   `.devcontainer/docs/customizing.md#how-do-i-write-latex`. No display is forwarded, so desktop
   editors like TeXstudio don't run in the container.
 
+- **Template development: `template-complete-dev` variant** (template repository only, removed by
+  the cleanup): `template-dev` plus every toolchain (uv, node, latex) and their extensions, for
+  working on the toolchains side by side. A test keeps it listing every toolchain.
+
 ### Changed
 - **`.gitignore` ignores LaTeX build files** (`*.aux`, `*.bbl`, `*.bcf`, `*.blg`, `*.fdb_latexmk`,
   `*.fls`, `*.run.xml`, `*.synctex.gz`, `*.toc`). Not `*.log` or `*.out`, which other tools use too.

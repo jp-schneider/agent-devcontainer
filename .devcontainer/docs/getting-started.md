@@ -107,5 +107,5 @@ which one to use when you reopen in the container.
 All variants of a worktree share one container name, so switching variants replaces the container.
 Node and LaTeX can be added to any variant ([Node](customizing.md#how-do-i-use-node-npm-pnpm),
 [LaTeX](customizing.md#how-do-i-write-latex)).
-The template repository also has a `template-dev` variant for developing the template itself; it is
-removed from new projects.
+The template repository also has `template-dev` and `template-complete-dev` variants for developing
+the template itself; they are removed from new projects.

@@ -19,7 +19,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
   the commit SHA.
 - **Also needed:** `git`, `jq`, Python 3 with PyYAML. `uv run --with pyyaml` is used if
   PyYAML isn't installed.
-- **The `template-dev` variant** has all of this, plus `shellcheck`. Inside it, `tests/run.sh`
+- **The `template-dev` variant** has all of this, plus `shellcheck` (`template-complete-dev`:
+  the same plus every toolchain). Inside it, `tests/run.sh`
   and the CI lint step
   (`git ls-files -z '*.sh' '*.bash' '.devcontainer/shared/bin/*' | xargs -0 shellcheck --severity=warning`)
   run as they are.

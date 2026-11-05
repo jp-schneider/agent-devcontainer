@@ -68,7 +68,7 @@ derived repo:
    .devcontainer/compose.project.yml .devcontainer/apt-packages.txt .devcontainer/tex-packages.txt LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md
    .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
    .github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release
-   .devcontainer/template-dev`):
+   .devcontainer/template-dev .devcontainer/template-complete-dev`):
    - if the derived repo has it, removes files the template *added* under it and restores the
      repo's version (this also resolves conflicts there);
    - otherwise removes the template's copy.

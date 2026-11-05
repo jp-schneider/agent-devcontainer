@@ -27,6 +27,7 @@ user-facing guides that stay in every derived repo start at [.devcontainer/READM
 ├── base/devcontainer.json       no toolchain
 ├── latex/                       latex toolchain + LaTeX Workshop
 ├── template-dev/                template repo only: base + test/lint tools (removed by cleanup)
+├── template-complete-dev/       template repo only: template-dev + all toolchains (removed by cleanup)
 ├── .generated/                  gitignored, written by initialize.sh (host, protect, resolved)
 ├── allowed-nested-git.txt       optional: nested repos to allow (and protect)
 ├── mask-patterns.txt            optional: project mask additions/exceptions

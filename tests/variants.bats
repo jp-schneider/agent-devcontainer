@@ -92,6 +92,16 @@ same() {
     done
 }
 
+@test "template-complete-dev lists every toolchain, each once" {
+    local t all="" listed
+    for d in "$REPO_ROOT"/.devcontainer/shared/toolchains/*/; do all="$all $(basename "$d")"; done
+    listed="$(json template-complete-dev '.initializeCommand[3:][]' | tr -d '"' | tr '\n' ' ')"
+    for t in $all; do
+        [ "$(tr ' ' '\n' <<< "$listed" | grep -cx "$t")" = 1 ] || { echo "not listed once: $t" >&2; return 1; }
+    done
+    [ "$(wc -w <<< "$listed")" -eq "$(wc -w <<< "$all")" ]
+}
+
 @test "negative control: same() detects a difference" {
     VARIANTS="$VARIANTS"
     json() { case "$1" in "${VARIANTS%% *}") echo a ;; *) echo b ;; esac; }

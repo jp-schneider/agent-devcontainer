@@ -37,7 +37,8 @@ url="${2:-https://github.com/jp-schneider/agent-devcontainer.git}"
 # Paths owned by this repo, not by the template (the template's copies are never merged in)
 own_paths="CLAUDE.md README.md .claude docs .github/template-cleanup .devcontainer/compose.project.yml .devcontainer/apt-packages.txt
 .devcontainer/tex-packages.txt LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md .github/ISSUE_TEMPLATE tests .vscode/tasks.json .github/workflows/tests.yml
-.github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev"
+.github/workflows/template-cleanup.yml .github/workflows/release.yml .github/release .devcontainer/template-dev
+.devcontainer/template-complete-dev"
 legacy=".devcontainer.legacy"
 
 # Submodules' own state (changes inside, new commits) doesn't matter: the template has none, and only
