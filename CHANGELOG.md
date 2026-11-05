@@ -9,6 +9,8 @@ Repos created from the template can update with `.devcontainer/update-from-templ
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-05
+
 ### Added
 - **LaTeX: `latex` variant and `latex` toolchain.** Upstream TeX Live 2026 (a curated set, not
   scheme-full) with latexmk, biber, chktex and latexindent; the variant adds LaTeX Workshop (build
