@@ -40,7 +40,8 @@ BASH_UNDER_TEST=/bin/bash tests/run.sh   # scripts under test with another bash 
 | `variants.bats` | invariants across variants: identical `remoteEnv` and security settings (credential relays off), `initializeCommand`, compose order, socket cleanup in `postStartCommand` and the compose `command`, `shared/post-attach.sh` in `postAttachCommand`, `shared/post-start.sh`, each toolchain's overlay listed |
 | `post-attach.bats` | `shared/post-attach.sh` in a fake `$HOME`: one warning per visible effect (VS Code helper, copied `~/.gitconfig`, Docker helper), none and no file when clean, file removed when the cause is gone; `credential` sections (plain, per-URL) removed from `~/.gitconfig` and the XDG config, other settings kept; the Dockerfile's `.bashrc` line prints the warning in interactive shells only, quietly and with status 0 otherwise |
 | `socket-cleanup.bats` | `shared/socket-cleanup.sh` on a fake `/tmp`: relay sockets and the credential helper deleted at depth 1 and in `user/<uid>/`, look-alikes kept, the loop catches later sockets |
-| `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag) |
+| `template-flow.bats` | "Use this template" → cleanup → customize → two updates (unrelated histories / tag); relative links in the kept docs resolve after cleanup |
+| `docs.bats` | relative links and anchors in all tracked Markdown resolve (`md-links.py`, GitHub heading slugs); the checker itself on a broken file link and anchor |
 | `toolchains.bats` | `shared/post-start.sh` dispatch (order, failures); node `init-host.sh`: package dir discovery, generated overlay, mount points, host dirs, skipped paths |
 | `gitignore.bats` | `.gitignore`: `.venv` and the uv `.venv-<worktree>.ct` symlinks ignored at any depth; similar names not |
 | `adopt.bats` | `--adopt` in a foreign repo: legacy move (content, mode), seeding, `.gitignore` union, remaining conflicts, warnings, then a regular update; refusals |

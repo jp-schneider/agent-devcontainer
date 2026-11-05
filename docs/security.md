@@ -237,7 +237,7 @@ encode secrets in paths or directory names.
 
 ## Known limitations
 
-The list lives in [.devcontainer/README.md](../.devcontainer/README.md#known-limitations), so derived
+The list lives in [.devcontainer/docs/security.md](../.devcontainer/docs/security.md#known-limitations), so derived
 repos keep it (this folder is removed by the cleanup). Update it there.
 
 ## Maintaining

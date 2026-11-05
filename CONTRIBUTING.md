@@ -10,7 +10,7 @@ experience level. "I'm not sure this is safe because …" is a perfectly good is
 
 - **Security review:** read [docs/security.md](docs/security.md) and try to break it. Look for
   escape paths, wrong assumptions, or missing threats.
-- **Close a known limitation:** see [.devcontainer/README.md](.devcontainer/README.md#known-limitations),
+- **Close a known limitation:** see [.devcontainer/docs/security.md](.devcontainer/docs/security.md#known-limitations),
   e.g. egress filtering or pinning the supply chain.
 - **Test on other hosts:** native Linux, macOS, other GPUs. Report what worked and what didn't.
 - **New variants and toolchains:** see [docs/extending.md](docs/extending.md).
@@ -79,8 +79,8 @@ These are easy to break by accident and matter for security:
 - [ ] The change is explained: what it protects against, or why it's safe.
 - [ ] `tests/run.sh` passes (CI too). Host checks were done for the affected variants/hosts, or are listed
       as not done.
-- [ ] Docs updated: `.devcontainer/README.md` (including **Known limitations** if the security
-      picture changes), `CUSTOMIZING.md`, `REFERENCE.md` and `docs/` as needed.
+- [ ] Docs updated: the user guides in `.devcontainer/docs/` (including **Known limitations** in
+      `security.md` if the security picture changes), `.devcontainer/README.md` and `docs/` as needed.
 - [ ] `CHANGELOG.md`: an entry under **[Unreleased]**. No version bump, unless the PR is meant to be
       a release (maintainer, see below).
 

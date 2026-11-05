@@ -2,7 +2,8 @@
 
 Documentation for **maintaining and understanding this devcontainer template**. This folder is
 removed from repos created with "Use this template" (see [lifecycle.md](lifecycle.md)). The
-user-facing guide that stays in every derived repo is [.devcontainer/README.md](../.devcontainer/README.md).
+user-facing guides that stay in every derived repo start at [.devcontainer/README.md](../.devcontainer/README.md)
+(pages in [.devcontainer/docs/](../.devcontainer/docs/)).
 
 | Page | Contents |
 |---|---|
@@ -16,9 +17,8 @@ user-facing guide that stays in every derived repo is [.devcontainer/README.md](
 
 ```
 .devcontainer/
-├── README.md                    user guide (kept in derived repos)
-├── CUSTOMIZING.md               FAQ + best practices for template users (kept in derived repos)
-├── REFERENCE.md                 how it works: composition, protections, toolchains (kept in derived repos)
+├── README.md                    user guide entry: what the agent can/can't do, page index (kept in derived repos)
+├── docs/                        user guides by task: getting started … troubleshooting (kept in derived repos)
 ├── claude-md/                   optional CLAUDE.md snippets to copy (research, personal preferences)
 ├── update-from-template.sh      merge template updates into a derived repo (default: latest release tag)
 ├── VERSION                      template version of this checkout (kept in derived repos)
