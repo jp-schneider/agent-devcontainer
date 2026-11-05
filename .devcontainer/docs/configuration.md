@@ -194,6 +194,12 @@ The `latex` variant ships with it; other variants can add it (see [customizing.m
   installs `scheme-basic` without docs and sources; the log is `~/.local/texlive/install-<year>.log`.
   An interrupted install is removed and redone on the next start. Starts of several projects at
   once take turns (a lock in the volume).
+- **Mirrors:** `mirror.ctan.org` picks a mirror per request, and mirrors lag each other by up to a
+  day or two. The first download fixes one mirror for the installer, its checksum and signature,
+  and `install-tl`; that mirror is recorded in the volume (`<year>/.devcontainer-mirror`).
+  `tlmgr` refuses a mirror that is behind the installation ("older than the local installation"),
+  so package installs try the recorded mirror first, then up to three mirrors via
+  `TEXLIVE_REPOSITORY`. `tlmgr` itself is configured with `TEXLIVE_REPOSITORY`.
 - **Packages:** the toolchain's curated set (`shared/toolchains/latex/tex-packages.txt`: the
   common LaTeX collections, math/science, pictures, publishers, bibtex-extra, LuaLaTeX, XeLaTeX,
   latexmk, biber, chktex, latexindent) plus the project's `.devcontainer/tex-packages.txt`. Every

@@ -25,6 +25,11 @@ toolchain_list="$(cd "$(dirname "$0")" && pwd)/tex-packages.txt"
 project_list="${TEX_PACKAGES_PROJECT:-/app/.devcontainer/tex-packages.txt}"
 texdir="$root/$year"
 stamp="$texdir/.devcontainer-installed"
+# The mirror install-tl used (recorded in the volume): at least as new as the installation, so
+# tlmgr tries it first. Mirrors lag by up to a day or two, and tlmgr refuses one that is behind
+# the installation ("seems to be older than the local installation").
+mirror_file="$texdir/.devcontainer-mirror"
+install_mirror=""
 
 warn() { echo "latex post-start: WARNING $*" >&2; }
 note() { echo "latex post-start: $*"; }
@@ -46,13 +51,21 @@ fi
 
 # install_texlive: download, verify, run install-tl (scheme-basic, no docs/sources) into $texdir
 install_texlive() {
-    local tmp dir status
+    local tmp dir status mirror f tlmgr_bin
     tmp="$(mktemp -d)"
     # shellcheck disable=SC2064 # expand $tmp now: it is local
     trap "rm -rf '$tmp'" RETURN
-    for f in install-tl-unx.tar.gz install-tl-unx.tar.gz.sha512 install-tl-unx.tar.gz.sha512.asc; do
-        if ! curl -fsSL --retry 2 -o "$tmp/$f" "$repo/$f"; then
-            warn "could not download $repo/$f (offline?); TeX Live is installed on the next start"
+    # A redirector (mirror.ctan.org) picks a mirror per request, and mirrors lag behind each other:
+    # the checksum, its signature and the archive must come from the same one. The first download
+    # resolves the mirror; everything else, install-tl included, uses it.
+    if ! mirror="$(curl -fsSL --retry 2 -w '%{url_effective}' -o "$tmp/install-tl-unx.tar.gz" "$repo/install-tl-unx.tar.gz")"; then
+        warn "could not download $repo/install-tl-unx.tar.gz (offline?); TeX Live is installed on the next start"
+        return 1
+    fi
+    mirror="${mirror%/install-tl-unx.tar.gz}"
+    for f in install-tl-unx.tar.gz.sha512 install-tl-unx.tar.gz.sha512.asc; do
+        if ! curl -fsSL --retry 2 -o "$tmp/$f" "$mirror/$f"; then
+            warn "could not download $mirror/$f (offline?); TeX Live is installed on the next start"
             return 1
         fi
     done
@@ -61,11 +74,11 @@ install_texlive() {
     # primary key is the pinned one counts. Fresh keyring, nothing else in it.
     export GNUPGHOME="$tmp/gnupg"
     mkdir -m 700 "$GNUPGHOME"
-    if ! tar -xzf "$tmp/install-tl-unx.tar.gz" -C "$tmp" --wildcards --no-anchored 'tlpkg/gpg/texlive.asc' 2> /dev/null; then
-        warn "installer archive has no tlpkg/gpg/texlive.asc; not installing"
+    if ! tar -xzf "$tmp/install-tl-unx.tar.gz" -C "$tmp" --wildcards --no-anchored 'tlpkg/gpg/pubring.gpg' 2> /dev/null; then
+        warn "installer archive has no tlpkg/gpg/pubring.gpg; not installing"
         return 1
     fi
-    gpg --batch --quiet --import "$tmp"/install-tl-*/tlpkg/gpg/texlive.asc 2> /dev/null
+    gpg --batch --quiet --import "$tmp"/install-tl-*/tlpkg/gpg/pubring.gpg 2> /dev/null
     if ! gpg --batch --status-fd 1 --verify "$tmp/install-tl-unx.tar.gz.sha512.asc" "$tmp/install-tl-unx.tar.gz.sha512" 2> /dev/null \
         | grep -q "^\[GNUPG:\] VALIDSIG .* $TEXLIVE_GPG_FINGERPRINT\$"; then
         warn "installer checksum: signature not by the pinned key $TEXLIVE_GPG_FINGERPRINT; not installing"
@@ -106,15 +119,24 @@ tlpdbopt_install_docfiles 0
 tlpdbopt_install_srcfiles 0
 tlpdbopt_autobackup 0
 EOF
-    note "installing TeX Live $year into the shared volume (first start on this machine; ~1.5 GB, several minutes); log: $root/install-$year.log"
-    "$dir/install-tl" -profile "$tmp/texlive.profile" -repository "$repo" > "$root/install-$year.log" 2>&1
+    note "installing TeX Live $year from $mirror into the shared volume (first start on this machine; ~1.5 GB, several minutes); log: $root/install-$year.log"
+    "$dir/install-tl" -profile "$tmp/texlive.profile" -repository "$mirror" > "$root/install-$year.log" 2>&1
     status=$?
     if [ "$status" -ne 0 ]; then
         warn "install-tl failed (exit $status), last lines of $root/install-$year.log:"
         tail -n 15 "$root/install-$year.log" >&2
         return 1
     fi
+    # Later tlmgr runs go through the configured repository (the redirector by default), not the
+    # one mirror the install happened to use
+    tlmgr_bin="$(echo "$texdir"/bin/*-linux/tlmgr)"
+    if ! "$tlmgr_bin" option repository "$repo" >> "$root/install-$year.log" 2>&1; then
+        warn "could not set tlmgr's repository to $repo (see $root/install-$year.log)"
+        return 1
+    fi
+    echo "$mirror" > "$mirror_file"
     touch "$stamp"
+    install_mirror="$mirror"
 }
 
 if [ ! -f "$stamp" ]; then
@@ -155,17 +177,43 @@ for list in "$toolchain_list" "$project_list"; do
 "
     done
 done
-missing="$(comm -23 <(printf '%s' "$wanted" | grep . | LC_ALL=C sort -u) \
+missing="$(LC_ALL=C comm -23 <(printf '%s' "$wanted" | grep . | LC_ALL=C sort -u) \
     <(tlmgr info --only-installed --data name 2> /dev/null | LC_ALL=C sort -u))"
+
+# tlmgr_try [<repository>]: update tlmgr itself (it refuses to install while a newer one is
+# available), then install $missing; from <repository>, else the configured one
+tlmgr_try() {
+    local repo_args=()
+    if [ -n "${1:-}" ]; then repo_args=(--repository "$1"); fi
+    # shellcheck disable=SC2086 # one argument per package; names are validated above
+    tlmgr "${repo_args[@]}" update --self && tlmgr "${repo_args[@]}" install $missing
+}
+
+# tlmgr_install: the install mirror first (only it right after install-tl); then up to 3 tries via
+# the configured repository, whose redirector picks a new mirror each time
+tlmgr_install() {
+    local try
+    if [ -z "$install_mirror" ] && [ -f "$mirror_file" ]; then install_mirror="$(head -n 1 "$mirror_file")"; fi
+    if [ -n "$install_mirror" ]; then
+        tlmgr_try "$install_mirror" && return 0
+        [ "$fresh" -eq 0 ] || return 1
+        note "tlmgr failed with the install mirror $install_mirror, trying the configured repository"
+    fi
+    for try in 1 2 3; do
+        tlmgr_try && return 0
+        [ "$try" -lt 3 ] || break
+        note "tlmgr failed (try $try of 3; a mirror behind this install?), retrying with another mirror"
+    done
+    return 1
+}
 
 status=0
 if [ -n "$missing" ]; then
     note "installing $(printf '%s\n' "$missing" | wc -l | tr -d ' ') TeX Live package(s): $(printf '%s' "$missing" | tr '\n' ' ')"
-    # tlmgr refuses to install while a newer tlmgr is available: update it first
-    # shellcheck disable=SC2086 # one argument per package; names are validated above
-    if ! { tlmgr update --self && tlmgr install $missing; }; then
-        warn "tlmgr install failed (offline? a package name wrong?). If TeX Live $((year + 1)) is out, its" \
-            "repository can't install into $year: update the template. Retried on the next start"
+    if ! tlmgr_install; then
+        warn "tlmgr install failed: offline, mirrors still behind this install (they catch up within a day" \
+            "or two), or a wrong package name. If TeX Live $((year + 1)) is out, its repository can't install" \
+            "into $year: update the template. Retried on the next start"
         status=1
     fi
 fi

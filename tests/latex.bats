@@ -35,15 +35,18 @@ needs_linux() {
     tar --version 2> /dev/null | grep -q GNU || skip "post-start.sh needs GNU tar"
 }
 
-# fake_curl: `curl … -o <out> <url>` copies $WORK/ctan/<basename url>; FAKE_OFFLINE=1 fails
+# fake_curl: `curl … -o <out> <url>` copies $WORK/ctan/<basename url>; FAKE_OFFLINE=1 fails. Like
+# mirror.ctan.org, https://ctan.test/ redirects to a mirror (https://mirror1.test/), which
+# `-w '%{url_effective}'` prints.
 fake_curl() {
     cat > "$WORK/bin/curl" << EOF
 #!/usr/bin/env bash
-out=""; url=""
-while [ \$# -gt 0 ]; do case "\$1" in -o) out="\$2"; shift 2 ;; -*) [ "\$1" = --retry ] && shift; shift ;; *) url="\$1"; shift ;; esac; done
+out=""; url=""; w=""
+while [ \$# -gt 0 ]; do case "\$1" in -o) out="\$2"; shift 2 ;; -w) w=1; shift 2 ;; --retry) shift 2 ;; -*) shift ;; *) url="\$1"; shift ;; esac; done
 echo "\$url" >> "$WORK/curl.log"
 [ -z "\${FAKE_OFFLINE:-}" ] || exit 6
 cp "$WORK/ctan/\${url##*/}" "\$out" 2> /dev/null || exit 22
+[ -z "\$w" ] || printf '%s' "\${url/ctan.test/mirror1.test}"
 EOF
     chmod +x "$WORK/bin/curl"
 }
@@ -78,7 +81,7 @@ make_ctan() {
     local src="$WORK/src/install-tl-20260301"
     rm -rf "$WORK/src"
     mkdir -p "$src/tlpkg/gpg"
-    echo "$key" > "$src/tlpkg/gpg/texlive.asc"
+    echo "$key" > "$src/tlpkg/gpg/pubring.gpg"
     echo "TeX Live (https://tug.org/texlive) version $release" > "$src/release-texlive.txt"
     cat > "$src/install-tl" << EOF
 #!/usr/bin/env bash
@@ -92,10 +95,16 @@ printf '%s\n' scheme-basic collection-basic collection-latex > "\$texdir/install
 cat > "\$bin/tlmgr" << 'TL'
 #!/usr/bin/env bash
 db="\$(dirname "\$0")/../../installed.txt"
+r=""; [ "\$1" = --repository ] && { r="[\$2] "; shift 2; }
 case "\$1" in
     info) cat "\$db" ;;
-    update) echo "\$*" >> "$WORK/tlmgr.log" ;;
-    install) shift; echo "install \$*" >> "$WORK/tlmgr.log"; [ -z "\${FAKE_TLMGR_FAIL:-}" ] || exit 1; printf '%s\n' "\$@" >> "\$db" ;;
+    update|option) echo "\$r\$*" >> "$WORK/tlmgr.log" ;;
+    install)
+        shift; echo "\${r}install \$*" >> "$WORK/tlmgr.log"
+        [ -z "\${FAKE_TLMGR_FAIL:-}" ] || exit 1
+        n=\$(cat "$WORK/tlmgr.fails" 2> /dev/null || echo 0)
+        if [ "\$n" -lt "\${FAKE_TLMGR_FAIL_TIMES:-0}" ]; then echo \$((n + 1)) > "$WORK/tlmgr.fails"; exit 1; fi
+        printf '%s\n' "\$@" >> "\$db" ;;
 esac
 TL
 printf '#!/bin/sh\necho "\$*" >> "$WORK/luaotfload.log"\n' > "\$bin/luaotfload-tool"
@@ -127,13 +136,23 @@ installed() {
     grep -qx "TEXDIR $ROOT/2026" "$WORK/profile.used"
     grep -qx "TEXMFSYSVAR $ROOT/2026/texmf-var" "$WORK/profile.used"
     grep -qx "tlpdbopt_install_docfiles 0" "$WORK/profile.used"
-    grep -qx -- "-profile .*/texlive.profile -repository https://ctan.test/tlnet" "$WORK/install-tl.log"
     # tlmgr updates itself, then gets one install call: toolchain + project list, minus scheme-basic's
-    [ "$(sed -n 1p "$WORK/tlmgr.log")" = "update --self" ]
-    [ "$(grep -c '^install' "$WORK/tlmgr.log")" = 1 ]
+    [ "$(grep -v '^option' "$WORK/tlmgr.log" | sed -n 1p)" = "[https://mirror1.test/tlnet] update --self" ]
+    [ "$(grep -c '^\[https://mirror1.test/tlnet\] install' "$WORK/tlmgr.log")" = 1 ]
     for p in collection-latexextra latexmk biber latexindent siunitx; do installed "$p"; done
     not_grep 'install .*collection-latex\b' "$WORK/tlmgr.log"
     grep -qx -- '--update' "$WORK/luaotfload.log"
+}
+
+@test "one mirror: the redirector is resolved once, for all downloads and install-tl; tlmgr goes back to it" {
+    needs_linux
+    make_ctan
+    start
+    [ "$status" -eq 0 ]
+    [ "$(tr '\n' ' ' < "$WORK/curl.log")" = "https://ctan.test/tlnet/install-tl-unx.tar.gz https://mirror1.test/tlnet/install-tl-unx.tar.gz.sha512 https://mirror1.test/tlnet/install-tl-unx.tar.gz.sha512.asc " ]
+    grep -qx -- "-profile .*/texlive.profile -repository https://mirror1.test/tlnet" "$WORK/install-tl.log"
+    [ "$(sed -n 1p "$WORK/tlmgr.log")" = "option repository https://ctan.test/tlnet" ]
+    output_has "installing TeX Live 2026 from https://mirror1.test/tlnet"
 }
 
 @test "later starts: no download; nothing missing, no tlmgr; a new project package installed alone" {
@@ -149,7 +168,8 @@ installed() {
     echo 'siunitx collection-langgerman' > "$TEX_PACKAGES_PROJECT"
     start
     [ "$status" -eq 0 ]
-    [ "$(grep '^install' "$WORK/tlmgr.log")" = "install collection-langgerman" ]
+    # From the recorded install mirror
+    [ "$(grep 'install' "$WORK/tlmgr.log")" = "[https://mirror1.test/tlnet] install collection-langgerman" ]
 }
 
 @test "an interrupted install (no stamp) is removed and redone" {
@@ -226,7 +246,66 @@ installed() {
     rm -f "$WORK/tlmgr.log"
     start
     [ "$status" -eq 0 ]
-    grep -q '^install .*siunitx' "$WORK/tlmgr.log"
+    grep -q 'install .*siunitx' "$WORK/tlmgr.log"
+}
+
+@test "later starts: the recorded install mirror first, then up to 3 tries via the redirector" {
+    needs_linux
+    make_ctan
+    start
+    [ "$(cat "$ROOT/2026/.devcontainer-mirror")" = "https://mirror1.test/tlnet" ]
+    echo 'siunitx collection-langgerman' > "$TEX_PACKAGES_PROJECT"
+    rm -f "$WORK/tlmgr.log"
+    FAKE_TLMGR_FAIL_TIMES=2 start
+    [ "$status" -eq 0 ]
+    [ "$(grep install "$WORK/tlmgr.log" | tr '\n' '|')" \
+        = "[https://mirror1.test/tlnet] install collection-langgerman|install collection-langgerman|install collection-langgerman|" ]
+    output_has "tlmgr failed with the install mirror https://mirror1.test/tlnet, trying the configured repository"
+    output_has "retrying with another mirror"
+    installed collection-langgerman
+    echo 'siunitx lipsum' > "$TEX_PACKAGES_PROJECT"
+    rm -f "$WORK/tlmgr.log" "$WORK/tlmgr.fails"
+    FAKE_TLMGR_FAIL_TIMES=9 start
+    [ "$status" -ne 0 ]
+    [ "$(grep -c 'install lipsum' "$WORK/tlmgr.log")" = 4 ]
+    output_has "mirrors still behind this install"
+}
+
+@test "a volume without the recorded mirror (installed by an older version) goes via the redirector" {
+    needs_linux
+    make_ctan
+    start
+    rm "$ROOT/2026/.devcontainer-mirror"
+    echo 'siunitx lipsum' > "$TEX_PACKAGES_PROJECT"
+    rm -f "$WORK/tlmgr.log"
+    start
+    [ "$status" -eq 0 ]
+    [ "$(grep install "$WORK/tlmgr.log")" = "install lipsum" ]
+}
+
+@test "first start: no retry via another mirror, the install mirror is the right one" {
+    needs_linux
+    make_ctan
+    FAKE_TLMGR_FAIL_TIMES=1 start
+    [ "$status" -ne 0 ]
+    [ "$(grep -c 'install' "$WORK/tlmgr.log")" = 1 ]
+    [ -f "$ROOT/2026/.devcontainer-installed" ]
+}
+
+@test "missing packages are computed in C collation, whatever the locale (en_US sorts cmap before cm-super)" {
+    needs_linux
+    locale -a 2> /dev/null | grep -qix 'en_US.utf-\?8' || skip "no en_US.UTF-8 locale"
+    make_ctan
+    start
+    # cmap installed, cm-super not: comm in en_US collation would report cmap missing as well
+    grep -vx cm-super "$ROOT/2026/installed.txt" > "$WORK/db"
+    echo cmap >> "$WORK/db"
+    cp "$WORK/db" "$ROOT/2026/installed.txt"
+    echo 'cm-super cmap' > "$TEX_PACKAGES_PROJECT"
+    rm -f "$WORK/tlmgr.log"
+    LC_ALL=en_US.UTF-8 start
+    [ "$status" -eq 0 ]
+    [ "$(grep install "$WORK/tlmgr.log")" = "[https://mirror1.test/tlnet] install cm-super" ]
 }
 
 @test "list entries that aren't package names never reach tlmgr" {
@@ -278,7 +357,8 @@ installed() {
     # sign_ctan <key uid>: bundle that key's public key, sign the checksum with it
     sign_ctan() {
         make_ctan
-        gpg --armor --export "$1" > "$WORK/src/install-tl-20260301/tlpkg/gpg/texlive.asc"
+        # Binary keyring, as TeX Live ships it
+        gpg --export "$1" > "$WORK/src/install-tl-20260301/tlpkg/gpg/pubring.gpg"
         tar -czf "$WORK/ctan/install-tl-unx.tar.gz" -C "$WORK/src" install-tl-20260301
         (cd "$WORK/ctan" && sha512sum install-tl-unx.tar.gz > install-tl-unx.tar.gz.sha512)
         gpg --batch --yes --quiet --local-user "$1" --armor --detach-sign \
